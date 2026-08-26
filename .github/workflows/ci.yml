@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.configuration }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The cross-platform stack. The solution excludes
+          # Broiler.Media.Video.MediaFoundation and its test runner from this
+          # configuration, so the Broiler.Graphics submodule is not needed.
+          - os: ubuntu-latest
+            configuration: Release-Linux
+            submodules: 'false'
+          # Adds Broiler.Media.Video.MediaFoundation, which borrows the HWND
+          # presentation target from Broiler.Graphics.Windows and therefore
+          # needs the submodule checked out.
+          - os: windows-latest
+            configuration: Release-Windows
+            submodules: 'recursive'
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          submodules: ${{ matrix.submodules }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build Broiler.Media.slnx -c ${{ matrix.configuration }} --nologo
+
+      # The suites are self-hosted console runners, not a test framework, so
+      # there is nothing for `dotnet test` to discover. See eng/run-tests.sh.
+      - name: Test
+        shell: bash
+        run: ./eng/run-tests.sh
+
+      # Proves the packages still build from this commit. Publishing is a
+      # separate, deliberate action - see .github/workflows/publish.yml.
+      - name: Pack
+        if: matrix.configuration == 'Release-Linux'
+        run: dotnet pack Broiler.Media.slnx -c ${{ matrix.configuration }} --nologo -o ./artifacts
+
+      - name: Upload packages
+        if: matrix.configuration == 'Release-Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*
+          if-no-files-found: error

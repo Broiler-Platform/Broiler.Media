@@ -1,5 +1,6 @@
 # Broiler.Media
 
+[![CI](https://github.com/Broiler-Platform/Broiler.Media/actions/workflows/ci.yml/badge.svg)](https://github.com/Broiler-Platform/Broiler.Media/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/Broiler-Platform/Broiler.Media/blob/main/LICENSE)
 
 Broiler.Media is the decode-first media component for Broiler. It owns image, audio,
@@ -165,8 +166,15 @@ dotnet build Broiler.Media.slnx -c Release-Linux
 `Broiler.Media.Video.MediaFoundation` and its test runner build only under
 `Debug-Windows`/`Release-Windows`; every other configuration excludes them.
 
-Tests are self-hosted console runners rather than a test framework, so run each
-executable directly — for example:
+Tests are self-hosted console runners rather than a test framework, so there is
+nothing for `dotnet test` to discover. After building, run every suite the
+configuration produced:
+
+```bash
+./eng/run-tests.sh
+```
+
+Or run one directly:
 
 ```bash
 dotnet run --project src/tests/Broiler.Media.Image.Managed.Tests -c Release-Linux
@@ -177,6 +185,26 @@ To produce the packages locally:
 ```bash
 dotnet pack Broiler.Media.slnx -c Release-Linux -o ./artifacts
 ```
+
+## Continuous integration and releases
+
+`.github/workflows/ci.yml` builds and tests both configurations on every push and
+pull request — `Release-Linux` on Ubuntu, `Release-Windows` on Windows with the
+submodule — and attaches the packed packages to each run.
+
+`.github/workflows/publish.yml` publishes. Run it manually to choose a feed
+(GitHub Packages or nuget.org); it defaults to a dry run that packs and attaches
+the packages without pushing. Pushing a `v*` tag publishes to nuget.org, and the
+tag must match the version in `eng/Broiler.Packaging.props`, which stays the
+source of truth for the suite version.
+
+Publishing to nuget.org needs a `NUGET_API_KEY` repository secret. GitHub Packages
+uses the built-in token and needs no setup.
+
+Both workflows publish only the seven cross-platform packages.
+`Broiler.Media.Video.MediaFoundation` carries a package dependency on
+`Broiler.Graphics.Windows`, so it cannot ship until that package is on the same
+feed; `Release-Linux` excludes it, which is exactly the set that is ready.
 
 ## Packaging
 
