@@ -16,10 +16,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Broiler.Media.Video.MediaFoundation\Broiler.Media.Video.MediaFoundation.csproj" />
+    <ProjectReference Include="..\..\Broiler.Media.Video.MediaFoundation\Broiler.Media.Video.MediaFoundation.csproj" />
     <!-- The test acts as the composition root: it constructs the Graphics.Windows-owned
          HwndVideoOutput target and hands it to the Media Foundation session. -->
-    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
+    <ProjectReference Include="..\..\..\Broiler.Graphics\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
   </ItemGroup>
 
 </Project>

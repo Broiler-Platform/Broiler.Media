@@ -578,7 +578,7 @@ internal static class Program
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "Broiler.Media.slnx")))
-                return directory.FullName;
+                return Path.Combine(directory.FullName, "src");
 
             directory = directory.Parent;
         }

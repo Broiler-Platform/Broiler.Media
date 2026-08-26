@@ -1,0 +1,3 @@
+[submodule "Broiler.Graphics"]
+	path = Broiler.Graphics
+	url = https://github.com/MaiRat/Broiler.Graphics.git

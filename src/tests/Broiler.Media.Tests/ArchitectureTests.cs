@@ -53,6 +53,17 @@ internal static class ArchitectureTests
                 ["../Broiler.Media/Broiler.Media.csproj"],
             ["Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj"] =
                 ["../Broiler.Media.Image/Broiler.Media.Image.csproj"],
+            // The meta-package carries the cross-platform stack only; platform-native
+            // backends (MediaFoundation) stay separate packages.
+            ["Broiler.Media.All/Broiler.Media.All.csproj"] =
+                [
+                    "../Broiler.Media/Broiler.Media.csproj",
+                    "../Broiler.Media.Audio/Broiler.Media.Audio.csproj",
+                    "../Broiler.Media.Audio.Managed/Broiler.Media.Audio.Managed.csproj",
+                    "../Broiler.Media.Video/Broiler.Media.Video.csproj",
+                    "../Broiler.Media.Image/Broiler.Media.Image.csproj",
+                    "../Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj",
+                ],
         };
 
         foreach ((string relativeProject, string[] expectedReferences) in expected)
@@ -167,7 +178,7 @@ internal static class ArchitectureTests
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "Broiler.Media.slnx")))
-                return directory.FullName;
+                return Path.Combine(directory.FullName, "src");
 
             directory = directory.Parent;
         }

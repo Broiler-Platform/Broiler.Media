@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Broiler.Media.Audio\Broiler.Media.Audio.csproj" />
+    <ProjectReference Include="..\..\Broiler.Media.Audio\Broiler.Media.Audio.csproj" />
   </ItemGroup>
 
 </Project>
