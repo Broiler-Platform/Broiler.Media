@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Broiler.Media.Video.MediaFoundation</RootNamespace>
+    <AssemblyName>Broiler.Media.Video.MediaFoundation</AssemblyName>
+    <Description>Windows Media Foundation-backed video implementation for Broiler.Media.Video.</Description>
+    <PackageTags>broiler;media;video;windows;mediafoundation</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Configurations>Debug;Release;Debug-Windows;Release-Windows</Configurations>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Media.Video\Broiler.Media.Video.csproj" />
+    <!-- The Media Foundation backend BORROWS the HWND presentation target declared and
+         owned by Broiler.Graphics.Windows (media roadmap §6.6): it drives IMFMediaEngine
+         against that target's HWND and never creates or destroys the window. -->
+    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Broiler.Media.Video.MediaFoundation.Tests" />
+  </ItemGroup>
+
+</Project>

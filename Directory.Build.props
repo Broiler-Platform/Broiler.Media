@@ -1,0 +1,34 @@
+﻿<Project>
+
+  <!-- Broiler NuGet packaging metadata (vendored; do not edit by hand). -->
+  <Import Project="$(MSBuildThisFileDirectory)eng\Broiler.Packaging.props" />
+
+  <PropertyGroup>
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Linux' Or '$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">Linux</BroilerTargetOperatingSystem>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">Windows</BroilerTargetOperatingSystem>
+
+    <DebugSymbols Condition="'$(BroilerBaseConfiguration)' == 'Debug'">true</DebugSymbols>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Debug'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Debug'">false</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Debug'">$(DefineConstants);DEBUG</DefineConstants>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Release'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Release'">true</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Release'">$(DefineConstants);RELEASE</DefineConstants>
+
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Linux'">$(DefineConstants);LINUX</DefineConstants>
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Windows'">$(DefineConstants);WINDOWS</DefineConstants>
+
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+</Project>
+

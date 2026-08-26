@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Broiler.Media.Audio.Managed</RootNamespace>
+    <AssemblyName>Broiler.Media.Audio.Managed</AssemblyName>
+    <Description>Managed, cross-platform audio decoding/encoding implementation for Broiler.Media.Audio.</Description>
+    <PackageTags>broiler;media;audio;managed</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Media.Audio\Broiler.Media.Audio.csproj" />
+  </ItemGroup>
+
+</Project>
+

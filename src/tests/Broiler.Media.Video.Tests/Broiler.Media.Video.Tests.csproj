@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Broiler.Media.Video.Tests</RootNamespace>
+    <AssemblyName>Broiler.Media.Video.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTrimmable>false</IsTrimmable>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Media.Video\Broiler.Media.Video.csproj" />
+  </ItemGroup>
+
+</Project>
+

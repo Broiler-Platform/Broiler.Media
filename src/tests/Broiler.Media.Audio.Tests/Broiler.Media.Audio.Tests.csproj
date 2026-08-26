@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Broiler.Media.Audio.Tests</RootNamespace>
+    <AssemblyName>Broiler.Media.Audio.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTrimmable>false</IsTrimmable>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Media.Audio\Broiler.Media.Audio.csproj" />
+  </ItemGroup>
+
+</Project>
+

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Broiler.Media</RootNamespace>
+    <AssemblyName>Broiler.Media</AssemblyName>
+    <Description>Core media abstractions (audio, image, and video primitives) shared across the Broiler media stack.</Description>
+    <PackageTags>broiler;media;audio;image;video</PackageTags>
+  </PropertyGroup>
+
+</Project>
+
