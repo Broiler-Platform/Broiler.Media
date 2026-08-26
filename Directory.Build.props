@@ -4,6 +4,14 @@
   <Import Project="$(MSBuildThisFileDirectory)eng\Broiler.Packaging.props" />
 
   <PropertyGroup>
+    <!-- Component-specific packaging overrides. These are evaluated after the
+         vendored eng\Broiler.Packaging.props import above, so they win over its
+         suite-wide defaults. RepositoryUrl itself is filled by SourceLink from
+         this checkout's git origin. -->
+    <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Media</PackageProjectUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
     <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Linux' Or '$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
     <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">Linux</BroilerTargetOperatingSystem>

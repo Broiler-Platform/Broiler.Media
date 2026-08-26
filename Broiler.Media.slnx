@@ -7,46 +7,70 @@
     <BuildType Name="Debug-Windows" />
     <BuildType Name="Release-Windows" />
   </Configurations>
+  <Folder Name="/solution items/">
+    <File Path="Directory.Build.props" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path=".gitignore" />
+  </Folder>
+  <Folder Name="/solution items/eng/">
+    <File Path="eng/Broiler.Packaging.props" />
+  </Folder>
+  <Folder Name="/solution items/docs/">
+    <File Path="docs/roadmap.md" />
+    <File Path="docs/adr/README.md" />
+    <File Path="docs/adr/0001-component-topology-and-consumption-policy.md" />
+    <File Path="docs/adr/0002-buffer-ownership-and-limits.md" />
+    <File Path="docs/adr/0003-image-pixel-and-alpha-format.md" />
+    <File Path="docs/adr/0004-compatibility-window.md" />
+    <File Path="docs/adr/0005-windows-media-foundation-borrowed-hwnd.md" />
+  </Folder>
   <Folder Name="/src/">
-    <Project Path="Broiler.Media/Broiler.Media.csproj">
+    <Project Path="src/Broiler.Media/Broiler.Media.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Audio/Broiler.Media.Audio.csproj">
+    <Project Path="src/Broiler.Media.Audio/Broiler.Media.Audio.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Audio.Managed/Broiler.Media.Audio.Managed.csproj">
+    <Project Path="src/Broiler.Media.Audio.Managed/Broiler.Media.Audio.Managed.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Video/Broiler.Media.Video.csproj">
+    <Project Path="src/Broiler.Media.Video/Broiler.Media.Video.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj">
-      <BuildType Project="Debug" Solution="Debug-Linux|*" />
-      <BuildType Project="Release" Solution="Release-Linux|*" />
+    <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
+    <Project Path="src/Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj">
       <Build Project="false" Solution="Debug|*" />
       <Build Project="false" Solution="Release|*" />
       <Build Project="false" Solution="Debug-Linux|*" />
       <Build Project="false" Solution="Release-Linux|*" />
     </Project>
-    <Project Path="Broiler.Media.Image/Broiler.Media.Image.csproj">
+    <Project Path="src/Broiler.Media.Image/Broiler.Media.Image.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj">
+    <Project Path="src/Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj">
+      <BuildType Project="Debug" Solution="Debug-Linux|*" />
+      <BuildType Project="Release" Solution="Release-Linux|*" />
+      <BuildType Project="Debug" Solution="Debug-Windows|*" />
+      <BuildType Project="Release" Solution="Release-Windows|*" />
+    </Project>
+    <!-- Dependencies-only meta-package over the cross-platform stack. -->
+    <Project Path="src/Broiler.Media.All/Broiler.Media.All.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
@@ -54,45 +78,44 @@
     </Project>
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="Broiler.Media.Tests/Broiler.Media.Tests.csproj">
+    <Project Path="src/tests/Broiler.Media.Tests/Broiler.Media.Tests.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Audio.Tests/Broiler.Media.Audio.Tests.csproj">
+    <Project Path="src/tests/Broiler.Media.Audio.Tests/Broiler.Media.Audio.Tests.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Audio.Managed.Tests/Broiler.Media.Audio.Managed.Tests.csproj">
+    <Project Path="src/tests/Broiler.Media.Audio.Managed.Tests/Broiler.Media.Audio.Managed.Tests.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Video.Tests/Broiler.Media.Video.Tests.csproj">
+    <Project Path="src/tests/Broiler.Media.Video.Tests/Broiler.Media.Video.Tests.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Video.MediaFoundation.Tests/Broiler.Media.Video.MediaFoundation.Tests.csproj">
-      <BuildType Project="Debug" Solution="Debug-Linux|*" />
-      <BuildType Project="Release" Solution="Release-Linux|*" />
+    <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
+    <Project Path="src/tests/Broiler.Media.Video.MediaFoundation.Tests/Broiler.Media.Video.MediaFoundation.Tests.csproj">
       <Build Project="false" Solution="Debug|*" />
       <Build Project="false" Solution="Release|*" />
       <Build Project="false" Solution="Debug-Linux|*" />
       <Build Project="false" Solution="Release-Linux|*" />
     </Project>
-    <Project Path="Broiler.Media.Image.Tests/Broiler.Media.Image.Tests.csproj">
+    <Project Path="src/tests/Broiler.Media.Image.Tests/Broiler.Media.Image.Tests.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <Project Path="Broiler.Media.Image.Managed.Tests/Broiler.Media.Image.Managed.Tests.csproj">
+    <Project Path="src/tests/Broiler.Media.Image.Managed.Tests/Broiler.Media.Image.Managed.Tests.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />

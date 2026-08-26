@@ -1,10 +1,44 @@
 # Broiler.Media
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/Broiler-Platform/Broiler.Media/blob/main/LICENSE)
+
 Broiler.Media is the decode-first media component for Broiler. It owns image, audio,
 and video **decoding**, format **probing**, and codec **selection**, behind small
 abstraction assemblies with one concrete implementation assembly per media kind.
 Rendering, windowing, networking, and HTML media-element behaviour deliberately live
 outside this component.
+
+> **Preview release.** `0.1.0-preview.1` is the first published preview. Public names,
+> XML documentation, and the `MediaLimits`/pixel-format contracts are not frozen yet
+> and may change before `1.0`. See the
+> [roadmap](https://github.com/Broiler-Platform/Broiler.Media/blob/main/docs/roadmap.md)
+> for what is still open.
+
+## Installation
+
+Preview packages need an explicit prerelease opt-in:
+
+```bash
+dotnet add package Broiler.Media.All --prerelease
+```
+
+`Broiler.Media.All` is a dependencies-only meta-package covering the whole
+cross-platform stack. To take only what you need, reference the individual
+packages instead — for example, image decoding alone:
+
+```bash
+dotnet add package Broiler.Media.Image.Managed --prerelease
+```
+
+The Windows-only video backend is a separate package and is **not** pulled in by
+the meta-package:
+
+```bash
+dotnet add package Broiler.Media.Video.MediaFoundation --prerelease
+```
+
+All packages target `net10.0`, except `Broiler.Media.Video.MediaFoundation`, which
+targets `net10.0-windows`.
 
 ## Assemblies
 
@@ -20,6 +54,12 @@ outside this component.
 
 Each runtime assembly ships as its own NuGet package; applications opt into the media
 kinds and implementations they need. `Broiler.Media` is the base, not an everything-bundle.
+
+One additional package ships no assembly of its own:
+
+| Package | Role |
+| --- | --- |
+| `Broiler.Media.All` | Dependencies-only meta-package over the six cross-platform assemblies. Platform-native backends stay separate. |
 
 ### Dependency direction
 
@@ -73,8 +113,7 @@ Consumers register the codec set at their own composition root:
 - **Graphics** decodes images through an injected catalog via `Broiler.Graphics.BImageCodecs.Use(...)`
   (Graphics references only `Broiler.Media.Image`, never the implementation).
 - **Browser/app playback** (the `<audio>`/`<video>` playback clock, transport, and element
-  state machine) lives in the application/HTML layer — see `src/Broiler.Playback` — never in
-  this component.
+  state machine) lives in the Broiler HTML/application component — never in this one.
 
 ## Security and reliability
 
@@ -84,18 +123,59 @@ and time, queued/decoded memory) and use checked arithmetic for dimensions, stri
 allocation sizes. Malformed data produces a bounded `MediaException` carrying a `MediaError`
 (codec id and byte offset where safe) — never unbounded allocation, hangs, silent partial
 success, or arbitrary exception leakage. See
-[ADR 0002](docs/adr/0002-buffer-ownership-and-limits.md) for buffer ownership
-and limits.
+[ADR 0002](https://github.com/Broiler-Platform/Broiler.Media/blob/main/docs/adr/0002-buffer-ownership-and-limits.md)
+for buffer ownership and limits.
+
+## Repository layout
+
+```text
+src/                     runtime assemblies, one directory per package
+src/tests/               one self-hosted test runner executable per assembly
+eng/                     vendored packaging metadata and package icon
+docs/                    roadmap and architecture decision records
+Broiler.Media.slnx       solution over every project in src/ and src/tests/
+```
+
+## Building and testing
+
+The solution defines six configurations. `Debug`/`Release` are the plain host builds;
+the `-Linux` and `-Windows` variants additionally define a `LINUX`/`WINDOWS` compilation
+symbol and gate the platform-specific projects.
+
+```bash
+dotnet build Broiler.Media.slnx -c Release-Linux
+```
+
+`Broiler.Media.Video.MediaFoundation` and its test runner build only under
+`Debug-Windows`/`Release-Windows`; every other configuration excludes them.
+
+Tests are self-hosted console runners rather than a test framework, so run each
+executable directly — for example:
+
+```bash
+dotnet run --project src/tests/Broiler.Media.Image.Managed.Tests -c Release-Linux
+```
+
+To produce the packages locally:
+
+```bash
+dotnet pack Broiler.Media.slnx -c Release-Linux -o ./artifacts
+```
 
 ## Packaging
 
 Packages are published per assembly with lockstep suite versioning during preview
 (`0.1.0-preview.1`), Apache-2.0 licensed, with symbol packages (`.snupkg`) and SourceLink.
-Metadata is vendored from `eng/Broiler.Packaging.props` so each component packs standalone.
+Metadata is vendored from `eng/Broiler.Packaging.props` so each component packs standalone;
+component-specific overrides live in `Directory.Build.props` and win over those defaults.
 `Broiler.Media.Video.MediaFoundation` targets `net10.0-windows`; the rest are `net10.0` and
 platform-neutral.
 
 ## Design records
 
-- [Current roadmap](docs/roadmap.md)
-- [ADR index](docs/adr/README.md)
+- [Current roadmap](https://github.com/Broiler-Platform/Broiler.Media/blob/main/docs/roadmap.md)
+- [ADR index](https://github.com/Broiler-Platform/Broiler.Media/blob/main/docs/adr/README.md)
+
+## License
+
+Apache-2.0. See [LICENSE](https://github.com/Broiler-Platform/Broiler.Media/blob/main/LICENSE).

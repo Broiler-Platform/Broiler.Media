@@ -1,4 +1,15 @@
+# Build output
+bin/
+obj/
+artifacts/
 net10.0
-obj
 net10.0-windows
-.vs
+
+# NuGet pack output (packages are published from CI/local artifacts, never committed)
+*.nupkg
+*.snupkg
+
+# IDE / editor
+.vs/
+*.user
+*.suo

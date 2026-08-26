@@ -10,6 +10,8 @@
 
     <!-- Meta-package: ship dependencies only, no assembly. -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- No build output means no symbols: suppress the otherwise-empty .snupkg. -->
+    <IncludeSymbols>false</IncludeSymbols>
     <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
