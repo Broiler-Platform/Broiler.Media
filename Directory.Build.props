@@ -1,16 +1,29 @@
 ﻿<Project>
 
-  <!-- Broiler NuGet packaging metadata (vendored; do not edit by hand). -->
-  <Import Project="$(MSBuildThisFileDirectory)eng\Broiler.Packaging.props" />
-
+  <!-- Is the project being built one of THIS repository's own projects (under
+       src/), or a project belonging to a component checked out INSIDE this one
+       (the Broiler.Graphics submodule)? A nested component chains to this file
+       from its own Directory.Build.props, so without this distinction we would
+       impose our packaging metadata and project policy on a foreign component:
+       its test projects would inherit IsTrimmable/IsAotCompatible/
+       TreatWarningsAsErrors they never opted into, and its projects would pick
+       up a second copy of the vendored packaging props. -->
   <PropertyGroup>
-    <!-- Component-specific packaging overrides. These are evaluated after the
-         vendored eng\Broiler.Packaging.props import above, so they win over its
-         suite-wide defaults. RepositoryUrl itself is filled by SourceLink from
-         this checkout's git origin. -->
-    <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Media</PackageProjectUrl>
+    <BroilerOwnProjectRoot>$(MSBuildThisFileDirectory)src</BroilerOwnProjectRoot>
+    <BroilerOwnProjectRootLower>$(BroilerOwnProjectRoot.ToLowerInvariant())</BroilerOwnProjectRootLower>
+    <BroilerProjectDirectoryLower>$(MSBuildProjectDirectory.ToLowerInvariant())</BroilerProjectDirectoryLower>
+    <BroilerIsOwnProject>false</BroilerIsOwnProject>
+    <BroilerIsOwnProject Condition="$(BroilerProjectDirectoryLower.StartsWith($(BroilerOwnProjectRootLower)))">true</BroilerIsOwnProject>
   </PropertyGroup>
 
+  <!-- Broiler NuGet packaging metadata (vendored; do not edit by hand). -->
+  <Import Project="$(MSBuildThisFileDirectory)eng\Broiler.Packaging.props"
+          Condition="'$(BroilerIsOwnProject)' == 'true'" />
+
+  <!-- Configuration mapping. This part is deliberately GLOBAL: when the
+       solution is built as Release-Windows, every project it compiles must be
+       optimized, including the nested component's. Leaving this scoped would
+       silently produce an unoptimized Broiler.Graphics in a release build. -->
   <PropertyGroup>
     <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
     <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Linux' Or '$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
@@ -27,6 +40,15 @@
 
     <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Linux'">$(DefineConstants);LINUX</DefineConstants>
     <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Windows'">$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Project policy and packaging overrides, for this repository's projects
+       only. Component-specific overrides are evaluated after the vendored
+       eng\Broiler.Packaging.props import above, so they win over its
+       suite-wide defaults. RepositoryUrl itself is filled by SourceLink from
+       this checkout's git origin. -->
+  <PropertyGroup Condition="'$(BroilerIsOwnProject)' == 'true'">
+    <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Media</PackageProjectUrl>
 
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -39,4 +61,3 @@
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 </Project>
-
