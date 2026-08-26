@@ -85,7 +85,7 @@ and reference no implementation, no Graphics/HTML, and no native/Media Foundatio
 | Image | JPEG | ✅ | ✅ | baseline + progressive decode; baseline encode | `.Image.Managed` |
 | Image | BMP | ✅ | ✅ | 24/32-bit decode; 32-bit encode | `.Image.Managed` |
 | Image | GIF | ✅ | ✅ | animation | `.Image.Managed` |
-| Image | WebP | ✅ | ✅ | lossless + animation | `.Image.Managed` |
+| Image | WebP | ✅ | ✅ | lossless + animation; lossy VP8 decode needs the optional Windows WebP extension and reports a capability error without it | `.Image.Managed` |
 | Audio | RIFF/WAVE PCM | ✅ | — | streaming; 8/16/24/32-bit PCM + IEEE float | `.Audio.Managed` |
 | Video | MP4 (H.264/AAC) | ✅ | — | Windows-only, direct `IMFMediaEngine` presentation to an HWND | `.Video.MediaFoundation` |
 
