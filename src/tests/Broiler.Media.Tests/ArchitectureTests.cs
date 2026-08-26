@@ -47,7 +47,7 @@ internal static class ArchitectureTests
             ["Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj"] =
                 [
                     "../Broiler.Media.Video/Broiler.Media.Video.csproj",
-                    "../../../Broiler.Graphics/Broiler.Graphics.Windows/Broiler.Graphics.Direct2D.csproj",
+                    "../../Broiler.Graphics/Broiler.Graphics.Windows/Broiler.Graphics.Direct2D.csproj",
                 ],
             ["Broiler.Media.Image/Broiler.Media.Image.csproj"] =
                 ["../Broiler.Media/Broiler.Media.csproj"],

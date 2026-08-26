@@ -133,10 +133,26 @@ src/                     runtime assemblies, one directory per package
 src/tests/               one self-hosted test runner executable per assembly
 eng/                     vendored packaging metadata and package icon
 docs/                    roadmap and architecture decision records
+Broiler.Graphics/        submodule; supplies the HWND video target (Windows only)
 Broiler.Media.slnx       solution over every project in src/ and src/tests/
 ```
 
+`Broiler.Graphics` is a git submodule. Only `Broiler.Media.Video.MediaFoundation`
+and its test runner reference it, so the cross-platform build and all seven
+cross-platform packages work in a checkout without it. Building the `-Windows`
+configurations does require it.
+
 ## Building and testing
+
+Clone with the submodule, or initialise it in an existing checkout:
+
+```bash
+git clone --recurse-submodules https://github.com/Broiler-Platform/Broiler.Media.git
+```
+
+```bash
+git submodule update --init --recursive
+```
 
 The solution defines six configurations. `Debug`/`Release` are the plain host builds;
 the `-Linux` and `-Windows` variants additionally define a `LINUX`/`WINDOWS` compilation
