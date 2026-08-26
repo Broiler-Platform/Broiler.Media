@@ -39,7 +39,7 @@
     <!-- Project / repository links. RepositoryUrl is filled by SourceLink
          from the component's own git origin (PublishRepositoryUrl below),
          which keeps each component self-contained. -->
-    <PackageProjectUrl>https://github.com/MaiRat</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/Broiler-Platform</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
 
     <!-- README + icon are packed by the ItemGroup below. -->
