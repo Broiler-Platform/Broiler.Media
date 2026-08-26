@@ -54,10 +54,10 @@ jobs:
       # Broiler.Media.Video.MediaFoundation, the only project that reaches into
       # Broiler.Graphics, so publishing stays independent of that repository.
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -121,7 +121,7 @@ jobs:
           ls -1 ./artifacts
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-packages-${{ steps.version.outputs.version }}
           path: artifacts/*

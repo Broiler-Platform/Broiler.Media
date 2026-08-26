@@ -11,7 +11,17 @@ internal static class WebpWicDecoder
     private const uint ClsctxInprocServer = 0x1;
     private const uint CoInitMultithreaded = 0x0;
     private const int RpcEChangedMode = unchecked((int)0x80010106);
+    // WIC failures that mean "there is no usable WebP decoder on this machine"
+    // rather than "this data is wrong". The WebP decoder ships as an optional
+    // Windows component: present on a typical desktop, and on Windows Server and
+    // hosted CI images either missing outright or registered but not activatable
+    // - windows-latest returns COMPONENTINITIALIZEFAILURE, not COMPONENTNOTFOUND.
+    // None of these say anything about the bytes, so they must not surface as a
+    // FormatException claiming the input was malformed.
+    private const int WinCodecErrUnknownImageFormat = unchecked((int)0x88982F07);
     private const int WinCodecErrComponentNotFound = unchecked((int)0x88982F50);
+    private const int WinCodecErrInvalidRegistration = unchecked((int)0x88982F8A);
+    private const int WinCodecErrComponentInitializeFailure = unchecked((int)0x88982F8B);
 
     private static readonly Guid ClsidWicImagingFactory = new("cacaf262-9370-4615-a13b-9f5539da4c0a");
     private static readonly Guid IidWicImagingFactory = new("ec5ec8a9-c395-4314-9c77-54d7a935ff70");
@@ -27,9 +37,14 @@ internal static class WebpWicDecoder
         {
             return DecodeWindows(webpData);
         }
-        catch (COMException ex) when (ex.HResult == WinCodecErrComponentNotFound)
+        catch (COMException ex) when (ex.HResult is WinCodecErrUnknownImageFormat
+                                                 or WinCodecErrComponentNotFound
+                                                 or WinCodecErrInvalidRegistration
+                                                 or WinCodecErrComponentInitializeFailure)
         {
-            throw new NotSupportedException("Lossy VP8 WebP decoding requires the Windows Imaging Component WebP decoder.", ex);
+            throw new NotSupportedException(
+                $"Lossy VP8 WebP decoding requires the Windows Imaging Component WebP decoder, which is not available on this machine (HRESULT 0x{ex.HResult:X8}).",
+                ex);
         }
         catch (DllNotFoundException ex)
         {
@@ -41,7 +56,11 @@ internal static class WebpWicDecoder
         }
         catch (COMException ex)
         {
-            throw new FormatException("Windows Imaging Component could not decode the lossy VP8 WebP data.", ex);
+            // Carry the HRESULT: without it a WIC failure is indistinguishable
+            // from malformed input at the call site and in test output.
+            throw new FormatException(
+                $"Windows Imaging Component could not decode the lossy VP8 WebP data (HRESULT 0x{ex.HResult:X8}).",
+                ex);
         }
     }
 
