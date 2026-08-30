@@ -24,6 +24,7 @@
     <File Path="docs/adr/0003-image-pixel-and-alpha-format.md" />
     <File Path="docs/adr/0004-compatibility-window.md" />
     <File Path="docs/adr/0005-windows-media-foundation-borrowed-hwnd.md" />
+    <File Path="docs/adr/0006-no-graphics-dependency.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Broiler.Media/Broiler.Media.csproj">
@@ -49,6 +50,13 @@
       <BuildType Project="Release" Solution="Release-Linux|*" />
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
+    </Project>
+    <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
+    <Project Path="src/Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj">
+      <Build Project="false" Solution="Debug|*" />
+      <Build Project="false" Solution="Release|*" />
+      <Build Project="false" Solution="Debug-Linux|*" />
+      <Build Project="false" Solution="Release-Linux|*" />
     </Project>
     <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
     <Project Path="src/Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj">

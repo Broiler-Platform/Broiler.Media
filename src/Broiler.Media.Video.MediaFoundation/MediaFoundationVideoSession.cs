@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Broiler.Graphics.Windows;
+using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
@@ -9,7 +9,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
 {
     private readonly object _gate = new();
     private readonly IMediaFoundationMediaEngine _engine;
-    private readonly HwndVideoOutput _target;
+    private readonly IHwndVideoOutput _target;
     private readonly IDisposable? _platformScope;
     private readonly TaskCompletionSource<VideoStreamInfo> _metadataReady =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -18,7 +18,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
 
     internal MediaFoundationVideoSession(
         IMediaFoundationMediaEngine engine,
-        HwndVideoOutput target,
+        IHwndVideoOutput target,
         IDisposable? platformScope = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
@@ -50,7 +50,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
 
     internal static async ValueTask<MediaFoundationVideoSession> OpenAsync(
         IMediaFoundationMediaEngine engine,
-        HwndVideoOutput target,
+        IHwndVideoOutput target,
         string sourceUri,
         VideoSessionOptions options,
         CancellationToken cancellationToken)

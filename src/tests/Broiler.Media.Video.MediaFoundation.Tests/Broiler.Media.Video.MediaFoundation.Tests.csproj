@@ -16,10 +16,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The test acts as the composition root: it supplies its own IHwndVideoOutput target
+         and hands it to the Media Foundation session. It deliberately references no graphics
+         component — the real implementation of that contract is covered by the suite of the
+         component that owns it, and Media stays a leaf (ADR 0006). -->
     <ProjectReference Include="..\..\Broiler.Media.Video.MediaFoundation\Broiler.Media.Video.MediaFoundation.csproj" />
-    <!-- The test acts as the composition root: it constructs the Graphics.Windows-owned
-         HwndVideoOutput target and hands it to the Media Foundation session. -->
-    <ProjectReference Include="..\..\..\Broiler.Graphics\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
   </ItemGroup>
 
 </Project>

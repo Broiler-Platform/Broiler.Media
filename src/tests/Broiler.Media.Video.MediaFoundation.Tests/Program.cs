@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
-using Broiler.Graphics.Windows;
+using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation.Tests;
 
@@ -18,7 +19,8 @@ internal static class Program
         {
             ("Media Foundation provider exposes one Windows direct-presentation codec", ProviderExposesCodec),
             ("Media Foundation codec probes MP4 signatures and hints", CodecProbesMp4),
-            ("Borrowed HWND target validates lifetime and records output state", BorrowedTargetLifecycle),
+            ("Borrowed HWND contract exposes observations, not owner-only operations", BorrowedTargetContractIsBorrowerShaped),
+            ("Borrowed HWND target reports lifetime and output state to its borrower", BorrowedTargetLifecycleReachesTheBorrower),
             ("Session loads metadata and controls playback through the engine", SessionLifecycle),
             ("Session forwards target resize and visibility changes", TargetChangesReachSession),
             ("Target destruction fails the session and shuts down the engine", TargetDestructionFailsSession),
@@ -26,7 +28,7 @@ internal static class Program
             ("Codec validates source policy before native startup", SourcePolicyValidation),
             ("Codec honors cancellation before native startup", CancellationBeforeNativeStartup),
             ("Video abstractions stay MediaFoundation and HWND free", AbstractionsStayBackendFree),
-            ("MediaFoundation runtime borrows only the Graphics.Windows HWND target, not the Graphics core/surfaces/HTML", RuntimeDependencyBoundary),
+            ("MediaFoundation runtime names no Broiler.Graphics type at all", RuntimeDependencyBoundary),
         };
 
         int passed = 0;
@@ -90,11 +92,43 @@ internal static class Program
         Assert.False(none.IsMatch);
     }
 
-    private static ValueTask BorrowedTargetLifecycle()
+    private static ValueTask BorrowedTargetContractIsBorrowerShaped()
     {
-        Assert.Throws<ArgumentException>(() => _ = new HwndVideoOutput(0, "zero", 1, 1, validateNativeWindow: false));
+        // ADR 0005 splits ownership: the windowing layer creates, resizes, shows/hides and
+        // destroys the HWND; the video backend only borrows it. ADR 0006 makes that split a
+        // compile-time guarantee by handing the backend an interface that simply has no
+        // owner-only operation to call. Guard that shape — re-adding one of these members
+        // would silently hand every borrower the ability to mutate a window it does not own.
+        Type[] contract = [typeof(IHwndVideoOutput), .. typeof(IHwndVideoOutput).GetInterfaces()];
+        string[] ownerOnly = ["Resize", "SetVisible", "NotifyDestroyed"];
 
-        HwndVideoOutput target = CreateTarget();
+        foreach (Type type in contract)
+        {
+            foreach (MethodInfo method in type.GetMethods())
+            {
+                Assert.False(
+                    ownerOnly.Contains(method.Name, StringComparer.Ordinal),
+                    $"{type.Name} exposes owner-only operation '{method.Name}' to borrowers.");
+            }
+        }
+
+        // The observations a borrower legitimately needs must all be present.
+        foreach (string member in new[] { "Hwnd", "Width", "Height", "IsVisible", "IsDestroyed" })
+            Assert.True(typeof(IHwndVideoOutput).GetProperty(member) is not null, $"Expected {member} on the contract.");
+
+        Assert.True(
+            typeof(IHwndVideoOutput).GetMethod("ThrowIfUsableTargetRequired") is not null,
+            "Expected the usability check on the contract.");
+        Assert.True(
+            typeof(IVideoOutput).IsAssignableFrom(typeof(IHwndVideoOutput)),
+            "The borrowed HWND target must still be a platform-neutral video output.");
+
+        return ValueTask.CompletedTask;
+    }
+
+    private static ValueTask BorrowedTargetLifecycleReachesTheBorrower()
+    {
+        FakeHwndVideoTarget target = CreateTarget();
         var changes = new List<HwndVideoTargetChangeKind>();
         target.TargetChanged += (_, e) => changes.Add(e.Kind);
 
@@ -114,7 +148,7 @@ internal static class Program
                 HwndVideoTargetChangeKind.Destroyed,
             },
             changes);
-        Assert.Throws<ObjectDisposedException>(() => target.Resize(1, 1));
+        Assert.Throws<ObjectDisposedException>(() => target.ThrowIfUsableTargetRequired());
 
         var error = new MediaError(MediaErrorCode.OutputFailed, "target failed");
         target.FailAsync(error).AsTask().GetAwaiter().GetResult();
@@ -125,7 +159,7 @@ internal static class Program
     private static async ValueTask SessionLifecycle()
     {
         FakeMediaEngine engine = new();
-        HwndVideoOutput target = CreateTarget();
+        FakeHwndVideoTarget target = CreateTarget();
         await using var session = new MediaFoundationVideoSession(engine, target);
         var events = new List<VideoSessionEventKind>();
         session.StateChanged += (_, e) => events.Add(e.Kind);
@@ -163,7 +197,7 @@ internal static class Program
     private static async ValueTask TargetChangesReachSession()
     {
         FakeMediaEngine engine = new();
-        HwndVideoOutput target = CreateTarget();
+        FakeHwndVideoTarget target = CreateTarget();
         await using var session = new MediaFoundationVideoSession(engine, target);
         var events = new List<VideoSessionEventKind>();
         session.StateChanged += (_, e) => events.Add(e.Kind);
@@ -182,7 +216,7 @@ internal static class Program
     private static async ValueTask TargetDestructionFailsSession()
     {
         FakeMediaEngine engine = new();
-        HwndVideoOutput target = CreateTarget();
+        FakeHwndVideoTarget target = CreateTarget();
         await using var session = new MediaFoundationVideoSession(engine, target);
         var events = new List<VideoSessionEventKind>();
         session.StateChanged += (_, e) => events.Add(e.Kind);
@@ -201,7 +235,7 @@ internal static class Program
     private static async ValueTask DisposeDisconnectsCallbacks()
     {
         FakeMediaEngine engine = new();
-        HwndVideoOutput target = CreateTarget();
+        FakeHwndVideoTarget target = CreateTarget();
         var session = new MediaFoundationVideoSession(engine, target);
         await session.LoadAsync("file:///C:/video.mp4", CancellationToken.None).ConfigureAwait(false);
         await session.DisposeAsync().ConfigureAwait(false);
@@ -264,13 +298,12 @@ internal static class Program
         {
             string text = File.ReadAllText(file);
 
-            // The one approved Graphics edge (media roadmap §6.6) is the Windows HWND video
-            // target declared by Broiler.Graphics.Windows, which the backend borrows. Any
-            // OTHER Broiler.Graphics reference — the rendering core, surfaces, devices, image
-            // stores, swap chains — is forbidden. Strip the sanctioned namespace, then assert
-            // no remaining Graphics reference survives.
-            string withoutWindowsTarget = text.Replace("Broiler.Graphics.Windows", string.Empty);
-            Assert.DoesNotContain("Broiler.Graphics", withoutWindowsTarget, file);
+            // There is no longer ANY approved Graphics edge. The backend borrows its HWND
+            // presentation target through Broiler.Media.Video.Windows' IHwndVideoOutput, so
+            // the graphics assembly that owns the window is invisible here (ADR 0006). This
+            // used to permit "Broiler.Graphics.Windows" — the exception that closed the
+            // Media → Graphics → Media cycle. Do not reintroduce it.
+            Assert.DoesNotContain("Broiler.Graphics", text, file);
 
             Assert.DoesNotContain("Broiler.Html", text, file);
             Assert.DoesNotContain("SwapChain", text, file);
@@ -285,8 +318,8 @@ internal static class Program
         return ValueTask.CompletedTask;
     }
 
-    private static HwndVideoOutput CreateTarget() =>
-        new((nint)1234, "test hwnd", 640, 360, validateNativeWindow: false);
+    private static FakeHwndVideoTarget CreateTarget() =>
+        new((nint)1234, "test hwnd", 640, 360);
 
     private static string FindMediaRoot()
     {
@@ -345,7 +378,7 @@ internal static class Program
 
         public VideoStreamInfo GetStreamInfo() => _info;
 
-        public void OnTargetChanged(HwndVideoOutput target)
+        public void OnTargetChanged(IHwndVideoOutput target)
         {
             TargetChangeCount++;
             LastTargetWidth = target.Width;
@@ -363,6 +396,90 @@ internal static class Program
 
         public void Raise(MediaFoundationMediaEngineEventKind kind) =>
             EventReceived?.Invoke(this, new MediaFoundationMediaEngineEvent(kind, 0, 0));
+    }
+
+    /// <summary>
+    /// Stands in for the window owner (in production, Broiler.Graphics.Windows). The
+    /// owner-only mutators live on the class, not on <see cref="IHwndVideoOutput"/>, exactly
+    /// as they do in the real implementation — the test drives them as the owner would, while
+    /// the session under test sees only the borrower contract.
+    /// </summary>
+    private sealed class FakeHwndVideoTarget : IHwndVideoOutput
+    {
+        public FakeHwndVideoTarget(nint hwnd, string displayName, int width, int height, bool isVisible = true)
+        {
+            Hwnd = hwnd;
+            DisplayName = displayName;
+            Width = width;
+            Height = height;
+            IsVisible = isVisible;
+        }
+
+        public event EventHandler<HwndVideoTargetChangedEventArgs>? TargetChanged;
+
+        public nint Hwnd { get; }
+
+        public string DisplayName { get; }
+
+        public int Width { get; private set; }
+
+        public int Height { get; private set; }
+
+        public bool IsVisible { get; private set; }
+
+        public bool IsDestroyed { get; private set; }
+
+        public bool Completed { get; private set; }
+
+        public MediaError? Failure { get; private set; }
+
+        public void Resize(int width, int height)
+        {
+            ThrowIfUsableTargetRequired();
+            Width = width;
+            Height = height;
+            Raise(HwndVideoTargetChangeKind.Resized);
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            ThrowIfUsableTargetRequired();
+            IsVisible = isVisible;
+            Raise(HwndVideoTargetChangeKind.VisibilityChanged);
+        }
+
+        public void NotifyDestroyed()
+        {
+            if (IsDestroyed)
+                return;
+
+            IsDestroyed = true;
+            IsVisible = false;
+            Raise(HwndVideoTargetChangeKind.Destroyed);
+        }
+
+        public ValueTask CompleteAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Completed = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask FailAsync(MediaError error, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Failure = error ?? throw new ArgumentNullException(nameof(error));
+            return ValueTask.CompletedTask;
+        }
+
+        public void ThrowIfUsableTargetRequired()
+        {
+            if (IsDestroyed)
+                throw new ObjectDisposedException(nameof(FakeHwndVideoTarget), "The borrowed HWND has been destroyed by its owner.");
+        }
+
+        private void Raise(HwndVideoTargetChangeKind kind) =>
+            TargetChanged?.Invoke(this, new HwndVideoTargetChangedEventArgs(kind, Width, Height, IsVisible));
     }
 
     private sealed class RecordingVideoOutput(string displayName) : IVideoOutput

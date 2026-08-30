@@ -14,6 +14,7 @@ internal static class ArchitectureTests
         tests.Add(("Media projects have no third-party package references", NoPackageReferences));
         tests.Add(("Runtime project references match the Phase 1 allowlist", RuntimeReferenceAllowlist));
         tests.Add(("Abstractions do not reference Graphics, HTML, or Media Foundation", AbstractionsStayNeutral));
+        tests.Add(("Nothing in the component references Broiler.Graphics", ComponentNeverReferencesGraphics));
         tests.Add(("Runtime sources avoid hidden module-initializer registration", NoModuleInitializers));
         tests.Add(("Shared Media has no untyped object Decode method", NoUntypedSharedDecode));
     }
@@ -42,12 +43,18 @@ internal static class ArchitectureTests
                 ["../Broiler.Media.Audio/Broiler.Media.Audio.csproj"],
             ["Broiler.Media.Video/Broiler.Media.Video.csproj"] =
                 ["../Broiler.Media/Broiler.Media.csproj"],
-            // §6.6: the Media Foundation backend borrows the HWND presentation target owned
-            // by Broiler.Graphics.Windows — the one approved Graphics edge.
+            // §6.6: the Windows presentation-target contract the Media Foundation backend
+            // borrows. Contracts only — it must never reference an implementation.
+            ["Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj"] =
+                ["../Broiler.Media.Video/Broiler.Media.Video.csproj"],
+            // §6.6: the Media Foundation backend borrows an HWND presentation target through
+            // the IHwndVideoOutput contract above. It used to reference
+            // Broiler.Graphics.Windows for the concrete target type, which closed a
+            // Media → Graphics → Media cycle; ADR 0006 inverted it. No Graphics edge remains.
             ["Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj"] =
                 [
                     "../Broiler.Media.Video/Broiler.Media.Video.csproj",
-                    "../../Broiler.Graphics/Broiler.Graphics.Windows/Broiler.Graphics.Direct2D.csproj",
+                    "../Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj",
                 ],
             ["Broiler.Media.Image/Broiler.Media.Image.csproj"] =
                 ["../Broiler.Media/Broiler.Media.csproj"],
@@ -112,6 +119,42 @@ internal static class ArchitectureTests
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// Broiler.Media is a leaf: it depends on no other Broiler component. This is the guard on
+    /// ADR 0006. Until then, Broiler.Media.Video.MediaFoundation referenced
+    /// Broiler.Graphics.Windows for the concrete HWND target type while Broiler.Graphics
+    /// referenced Broiler.Media.Image — a component-level cycle that forced each repository to
+    /// carry a submodule checkout of the other, and made a single build compile two copies of
+    /// Broiler.Media.Image from two different source trees.
+    /// </summary>
+    private static ValueTask ComponentNeverReferencesGraphics()
+    {
+        string root = FindMediaRoot();
+
+        // Every project in the component, tests included — a project reference is the actual
+        // dependency, and a test project reaching for Graphics rebuilds the cycle just as
+        // surely as a runtime one. (Test *sources* may name the string in assertions like
+        // this one, so only .csproj files are scanned here.)
+        foreach (string project in Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories))
+            Assert.DoesNotContain("Broiler.Graphics", File.ReadAllText(project), project);
+
+        foreach (string file in RuntimeSourceFiles(root))
+            Assert.DoesNotContain("Broiler.Graphics", File.ReadAllText(file), file);
+
+        // A source reference is only half of it: the cycle was also physical, as a
+        // Broiler.Graphics submodule checked out inside this component. Neither may return.
+        string componentRoot = Directory.GetParent(root)!.FullName;
+        string modules = Path.Combine(componentRoot, ".gitmodules");
+        if (File.Exists(modules))
+            Assert.DoesNotContain("Broiler.Graphics", File.ReadAllText(modules), modules);
+
+        Assert.False(
+            Directory.Exists(Path.Combine(componentRoot, "Broiler.Graphics")),
+            "Broiler.Media must not carry a Broiler.Graphics checkout.");
+
+        return ValueTask.CompletedTask;
+    }
+
     private static ValueTask NoModuleInitializers()
     {
         string root = FindMediaRoot();
@@ -145,6 +188,7 @@ internal static class ArchitectureTests
             "Broiler.Media.Audio",
             "Broiler.Media.Audio.Managed",
             "Broiler.Media.Video",
+            "Broiler.Media.Video.Windows",
             "Broiler.Media.Video.MediaFoundation",
             "Broiler.Media.Image",
             "Broiler.Media.Image.Managed",

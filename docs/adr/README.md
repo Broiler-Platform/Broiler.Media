@@ -11,3 +11,4 @@ are retained for traceability.
 | [0003](0003-image-pixel-and-alpha-format.md) | Image pixel and alpha format |
 | [0004](0004-compatibility-window.md) | Graphics compatibility window (superseded by implementation) |
 | [0005](0005-windows-media-foundation-borrowed-hwnd.md) | Borrowed HWND for Media Foundation video |
+| [0006](0006-no-graphics-dependency.md) | Broiler.Media depends on no Graphics component (refines 0005) |
