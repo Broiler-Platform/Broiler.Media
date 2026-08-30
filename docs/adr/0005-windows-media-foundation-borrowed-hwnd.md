@@ -2,7 +2,10 @@
 
 Date: 2026-07-03
 
-Status: Accepted; validated by the Media Foundation session implementation
+Status: Accepted; validated by the Media Foundation session implementation. The ownership
+split below still holds; how the backend *names* the borrowed target was refined by
+[ADR 0006](0006-no-graphics-dependency.md), which replaced the direct reference to
+`Broiler.Graphics.Windows` with the `IHwndVideoOutput` contract.
 
 ## Context
 

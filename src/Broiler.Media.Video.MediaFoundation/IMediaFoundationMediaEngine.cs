@@ -1,5 +1,5 @@
 using System;
-using Broiler.Graphics.Windows;
+using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
@@ -21,7 +21,7 @@ internal interface IMediaFoundationMediaEngine : IDisposable
 
     VideoStreamInfo GetStreamInfo();
 
-    void OnTargetChanged(HwndVideoOutput target);
+    void OnTargetChanged(IHwndVideoOutput target);
 
     void Shutdown();
 }

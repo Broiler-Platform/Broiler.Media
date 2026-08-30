@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Broiler.Media.Video.Windows</RootNamespace>
+    <AssemblyName>Broiler.Media.Video.Windows</AssemblyName>
+    <Description>Windows presentation-target contracts for Broiler.Media.Video. Declares the borrowed-HWND video target a Windows video backend consumes; carries no implementation and no windowing code.</Description>
+    <PackageTags>broiler;media;video;windows</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Configurations>Debug;Release;Debug-Windows;Release-Windows</Configurations>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Contracts only. This project exists so that a Windows video backend can name the
+         presentation target it borrows WITHOUT referencing the graphics stack that owns the
+         window (ADR 0006) — so it must never gain a reference to that stack, nor to any
+         other Broiler component beyond Media itself. -->
+    <ProjectReference Include="..\Broiler.Media.Video\Broiler.Media.Video.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
-using Broiler.Graphics.Windows;
+using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
@@ -100,10 +100,10 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
         ArgumentNullException.ThrowIfNull(output);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (output is not HwndVideoOutput target)
+        if (output is not IHwndVideoOutput target)
         {
             throw new ArgumentException(
-                "Media Foundation video sessions require a Broiler.Graphics.Windows HwndVideoOutput target.",
+                "Media Foundation video sessions require an IHwndVideoOutput presentation target.",
                 nameof(output));
         }
 
