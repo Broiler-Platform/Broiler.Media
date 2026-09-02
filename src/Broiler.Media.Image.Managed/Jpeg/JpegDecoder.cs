@@ -42,7 +42,9 @@ internal static class JpegDecoder
         public int Pred; // DC predictor (transient, per scan)
     }
 
-    public static ImageBuffer Decode(ReadOnlySpan<byte> data)
+    public static ImageBuffer Decode(
+        ReadOnlySpan<byte> data,
+        JpegColorTransform transform = JpegColorTransform.YCbCr)
     {
         if (!IsJpeg(data))
             throw new FormatException("Data does not start with a JPEG SOI marker.");
@@ -135,7 +137,7 @@ internal static class JpegDecoder
             throw new FormatException("JPEG ended before a frame header was found.");
 
         Reconstruct(components, quant, width, height);
-        return AssembleRgba(components, width, height);
+        return AssembleRgba(components, width, height, transform);
     }
 
     // ---- Geometry -------------------------------------------------------
@@ -450,7 +452,11 @@ internal static class JpegDecoder
         }
     }
 
-    private static ImageBuffer AssembleRgba(Component[] components, int width, int height)
+    private static ImageBuffer AssembleRgba(
+        Component[] components,
+        int width,
+        int height,
+        JpegColorTransform transform)
     {
         int hMax = 0, vMax = 0;
         foreach (Component c in components)
@@ -484,18 +490,39 @@ internal static class JpegDecoder
             return new ImageBuffer(width, height, rgba);
         }
 
-        Component cy = components[0];
-        Component cb = components[1];
-        Component cr = components[2];
+        Component c0 = components[0];
+        Component c1 = components[1];
+        Component c2 = components[2];
+
+        if (transform == JpegColorTransform.None)
+        {
+            // The channels are already RGB. Upsampling still applies — a
+            // subsampled RGB JPEG is unusual but legal — so the samples go
+            // through the same accessor and only the colour maths is skipped.
+            ImageDecodeParallelism.For(0, height, rowsPerBand, (fromRow, toRow) =>
+            {
+                for (int py = fromRow; py < toRow; py++)
+                    for (int px = 0; px < width; px++)
+                    {
+                        int d = (py * width + px) * 4;
+                        rgba[d] = (byte)Sample(c0, px, py, hMax, vMax);
+                        rgba[d + 1] = (byte)Sample(c1, px, py, hMax, vMax);
+                        rgba[d + 2] = (byte)Sample(c2, px, py, hMax, vMax);
+                        rgba[d + 3] = 255;
+                    }
+            });
+
+            return new ImageBuffer(width, height, rgba);
+        }
 
         ImageDecodeParallelism.For(0, height, rowsPerBand, (fromRow, toRow) =>
         {
             for (int py = fromRow; py < toRow; py++)
                 for (int px = 0; px < width; px++)
                 {
-                    int yy = Sample(cy, px, py, hMax, vMax);
-                    int cbv = Sample(cb, px, py, hMax, vMax) - 128;
-                    int crv = Sample(cr, px, py, hMax, vMax) - 128;
+                    int yy = Sample(c0, px, py, hMax, vMax);
+                    int cbv = Sample(c1, px, py, hMax, vMax) - 128;
+                    int crv = Sample(c2, px, py, hMax, vMax) - 128;
 
                     int r = (int)Math.Round(yy + 1.402 * crv);
                     int g = (int)Math.Round(yy - 0.344136 * cbv - 0.714136 * crv);
