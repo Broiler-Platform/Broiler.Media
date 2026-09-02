@@ -75,4 +75,47 @@ internal static class BmpDecoder
 
         return new ImageBuffer(width, height, rgba);
     }
+
+    /// <summary>
+    /// Reads the file header and the DIB header's first fields. Both sit at fixed
+    /// offsets, so this is a bounds check and four reads.
+    /// </summary>
+    public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
+    {
+        info = null;
+        if (!IsBmp(data) || data.Length < 30)
+            return false;
+
+        if (BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(14, 4)) < 40)
+            return false;
+
+        int width = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(18, 4));
+        int rawHeight = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(22, 4));
+        int bitCount = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(28, 2));
+
+        // A negative height means top-down rows, which is a storage order rather
+        // than a size. int.MinValue has no positive counterpart, so it is refused
+        // instead of negated into itself.
+        if (width <= 0 || rawHeight == 0 || rawHeight == int.MinValue || bitCount <= 0)
+            return false;
+
+        int height = Math.Abs(rawHeight);
+
+        // Below eight bits a pixel is a palette index; at and above it the count
+        // follows from the depth.
+        (int components, int bitDepth) = bitCount switch
+        {
+            1 or 2 or 4 or 8 => (1, bitCount),
+            16 => (3, 5),
+            24 => (3, 8),
+            32 => (4, 8),
+            _ => (0, 0),
+        };
+
+        if (components == 0)
+            return false;
+
+        info = new ImageInfo(width, height, components, bitDepth, "BMP", "image/bmp");
+        return true;
+    }
 }

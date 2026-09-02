@@ -689,4 +689,46 @@ internal static class PngDecoder
             chars[i] = type[i] is >= 32 and < 127 ? (char)type[i] : '?';
         return new string(chars);
     }
+
+    /// <summary>
+    /// Reads the IHDR chunk and stops. The format requires IHDR to be the first
+    /// chunk after the signature, so this reads one chunk header at a fixed
+    /// offset and never walks the file - which is the difference between
+    /// inspecting a hostile PNG and parsing one.
+    /// </summary>
+    public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
+    {
+        info = null;
+        if (!IsPng(data) || data.Length < 8 + 8 + 13)
+            return false;
+
+        if (BinaryPrimitives.ReadUInt32BigEndian(data.Slice(8, 4)) != 13 ||
+            !TypeIs(data.Slice(12, 4), "IHDR"))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<byte> chunk = data.Slice(16, 13);
+        uint width = BinaryPrimitives.ReadUInt32BigEndian(chunk[..4]);
+        uint height = BinaryPrimitives.ReadUInt32BigEndian(chunk.Slice(4, 4));
+        int bitDepth = chunk[8];
+
+        // Stored components, not decoded ones: a palettized PNG stores one index
+        // per pixel and decodes to four channels, and this reports the one.
+        int components = chunk[9] switch
+        {
+            0 => 1,
+            2 => 3,
+            3 => 1,
+            4 => 2,
+            6 => 4,
+            _ => 0,
+        };
+
+        if (width is 0 or > int.MaxValue || height is 0 or > int.MaxValue || components == 0 || bitDepth == 0)
+            return false;
+
+        info = new ImageInfo((int)width, (int)height, components, bitDepth, "PNG", "image/png");
+        return true;
+    }
 }

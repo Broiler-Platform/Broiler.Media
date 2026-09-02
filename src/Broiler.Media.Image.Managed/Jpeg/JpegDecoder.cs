@@ -674,4 +674,66 @@ internal static class JpegDecoder
         }
         return bytes.Length;
     }
+
+    /// <summary>
+    /// Walks marker segments to the first frame header and stops there. It steps
+    /// by declared segment lengths, never enters entropy-coded data, and never
+    /// allocates in proportion to the input.
+    /// </summary>
+    public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
+    {
+        info = null;
+        if (!IsJpeg(data))
+            return false;
+
+        int pos = 2;
+        while (pos + 1 < data.Length)
+        {
+            // Fill bytes are legal between segments, so advance one byte at a
+            // time rather than assuming the next byte opens a marker.
+            if (data[pos] != 0xFF)
+            {
+                pos++;
+                continue;
+            }
+
+            byte marker = data[pos + 1];
+            pos += 2;
+
+            if (marker == 0xFF || marker == 0x01 || marker is >= 0xD0 and <= 0xD8)
+                continue;
+            if (marker == 0xD9 || marker == 0xDA)
+                return false; // end of image, or entropy data, before any frame
+
+            if (pos + 2 > data.Length)
+                return false;
+
+            int length = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(pos, 2));
+            if (length < 2 || pos + length > data.Length)
+                return false;
+
+            // Every SOFn but DHT (0xC4), the reserved 0xC8, and DAC (0xCC).
+            if (marker is >= 0xC0 and <= 0xCF && marker is not (0xC4 or 0xC8 or 0xCC))
+            {
+                ReadOnlySpan<byte> frame = data.Slice(pos + 2, length - 2);
+                if (frame.Length < 6)
+                    return false;
+
+                int precision = frame[0];
+                int height = BinaryPrimitives.ReadUInt16BigEndian(frame.Slice(1, 2));
+                int width = BinaryPrimitives.ReadUInt16BigEndian(frame.Slice(3, 2));
+                int components = frame[5];
+
+                if (width <= 0 || height <= 0 || components <= 0 || precision <= 0)
+                    return false;
+
+                info = new ImageInfo(width, height, components, precision, "JPEG", "image/jpeg");
+                return true;
+            }
+
+            pos += length;
+        }
+
+        return false;
+    }
 }

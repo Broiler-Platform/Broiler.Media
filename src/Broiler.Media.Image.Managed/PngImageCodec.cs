@@ -72,5 +72,9 @@ public sealed class PngImageCodec : ImageCodec
         byte[] encoded = sequence.IsAnimated ? EncodeAnimation(sequence) : Encode(sequence.FirstFrame);
         await output.WriteAsync(encoded, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Reads what the PNG header declares, decoding nothing.</summary>
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
+        PngDecoder.TryInspect(data, out info);
 }
 

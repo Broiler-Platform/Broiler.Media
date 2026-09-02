@@ -72,5 +72,9 @@ public sealed class GifImageCodec : ImageCodec
         byte[] encoded = sequence.IsAnimated ? EncodeAnimation(sequence) : Encode(sequence.FirstFrame);
         await output.WriteAsync(encoded, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Reads what the GIF header declares, decoding nothing.</summary>
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
+        GifDecoder.TryInspect(data, out info);
 }
 

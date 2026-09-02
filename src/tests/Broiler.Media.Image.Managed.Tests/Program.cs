@@ -36,6 +36,9 @@ internal static class Program
             ("Media.Image.Managed runtime has no Graphics dependency", RuntimeHasNoGraphicsReference),
             ("Parallel decode is byte-identical to single-threaded decode", ParallelDecodeMatchesSequential),
             ("Decoders are re-entrant across threads", DecodersAreReentrant),
+            ("Every codec inspects its own encoded output", InspectionMatchesEncodedSize),
+            ("Inspection reads a header without decoding", InspectionDoesNotDecode),
+            ("Inspection refuses foreign, truncated and empty data", InspectionRefusesWhatItCannotRead),
         };
 
         int passed = 0;
@@ -532,6 +535,91 @@ internal static class Program
         Assert.Equal(expected.Height, actual.Height, "height");
         Assert.Equal(expected.Rgba.Length, actual.Rgba.Length, "rgba length");
         Assert.BytesEqual(expected.Rgba, actual.Rgba, "rgba");
+    }
+
+    /// <summary>
+    /// Every codec that can write its format must be able to read back the size
+    /// it wrote. Encoding here rather than committing fixtures means the test
+    /// covers whatever the encoders actually emit today.
+    /// </summary>
+    private static ValueTask InspectionMatchesEncodedSize()
+    {
+        (ImageCodec Codec, byte[] Bytes, string Format)[] cases =
+        [
+            (new PngImageCodec(), new PngImageCodec().Encode(MakeGradient(37, 19)), "PNG"),
+            (new BmpImageCodec(), new BmpImageCodec().Encode(MakeGradient(40, 24)), "BMP"),
+            (new JpegImageCodec(), new JpegImageCodec().Encode(MakeGradient(32, 16)), "JPEG"),
+            (new GifImageCodec(), new GifImageCodec().Encode(MakeGradient(21, 13)), "GIF"),
+            (new WebpImageCodec(), new WebpImageCodec().Encode(MakeGradient(25, 11)), "WebP"),
+        ];
+
+        (int Width, int Height)[] expected = [(37, 19), (40, 24), (32, 16), (21, 13), (25, 11)];
+
+        for (int i = 0; i < cases.Length; i++)
+        {
+            (ImageCodec codec, byte[] bytes, string format) = cases[i];
+            Assert.True(codec.TryInspect(bytes, out ImageInfo? info), $"{format} should inspect its own output.");
+            Assert.Equal(expected[i].Width, info!.Width, $"{format} inspected width.");
+            Assert.Equal(expected[i].Height, info.Height, $"{format} inspected height.");
+            Assert.Equal(format, info.FormatName, $"{format} inspected format name.");
+            Assert.True(info.Components > 0, $"{format} should report stored components.");
+            Assert.True(info.BitDepth > 0, $"{format} should report a bit depth.");
+            Assert.Equal((long)expected[i].Width * expected[i].Height, info.PixelCount, $"{format} pixel count.");
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// The point of inspection is that it costs a header rather than an image, so
+    /// the test truncates the file to just past its header and requires the
+    /// answer to be unchanged. A decode of these bytes would fail; an inspection
+    /// must not.
+    /// </summary>
+    private static ValueTask InspectionDoesNotDecode()
+    {
+        var png = new PngImageCodec();
+        byte[] full = png.Encode(MakeGradient(64, 48));
+
+        // Signature, IHDR chunk header, IHDR payload, IHDR CRC.
+        byte[] headerOnly = full[..(8 + 8 + 13 + 4)];
+
+        Assert.True(png.TryInspect(headerOnly, out ImageInfo? info), "PNG header alone should inspect.");
+        Assert.Equal(64, info!.Width, "Truncated PNG inspected width.");
+        Assert.Equal(48, info.Height, "Truncated PNG inspected height.");
+        Assert.Throws<FormatException>(() => png.Decode(headerOnly));
+
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// False is an answer, not a failure: an inspection is a question a caller
+    /// asks about bytes it may not own, so nothing here may throw.
+    /// </summary>
+    private static ValueTask InspectionRefusesWhatItCannotRead()
+    {
+        var png = new PngImageCodec();
+        var jpeg = new JpegImageCodec();
+        byte[] realPng = png.Encode(MakeGradient(16, 16));
+
+        Assert.False(png.TryInspect(ReadOnlySpan<byte>.Empty, out _), "Empty input is not a PNG.");
+        Assert.False(png.TryInspect("not an image at all"u8, out _), "Text is not a PNG.");
+        Assert.False(jpeg.TryInspect(realPng, out _), "The JPEG codec must not claim a PNG.");
+
+        // Every prefix of a real file has to reach a decision rather than an
+        // escape, which is the property that matters for untrusted input.
+        for (int length = 0; length < realPng.Length; length++)
+        {
+            bool read = png.TryInspect(realPng.AsSpan(0, length), out ImageInfo? info);
+            Assert.Equal(read, info is not null, $"PNG prefix of {length} byte(s) disagreed with its own result.");
+            if (read)
+            {
+                Assert.Equal(16, info!.Width, $"PNG prefix of {length} byte(s) inspected width.");
+                Assert.Equal(16, info.Height, $"PNG prefix of {length} byte(s) inspected height.");
+            }
+        }
+
+        return ValueTask.CompletedTask;
     }
 
     private static ImageBuffer MakeGradient(int width, int height)
