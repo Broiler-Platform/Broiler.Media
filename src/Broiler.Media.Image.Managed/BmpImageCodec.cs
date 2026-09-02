@@ -69,5 +69,9 @@ public sealed class BmpImageCodec : ImageCodec
         byte[] encoded = Encode(sequence.FirstFrame);
         await output.WriteAsync(encoded, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Reads what the BMP header declares, decoding nothing.</summary>
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
+        BmpDecoder.TryInspect(data, out info);
 }
 

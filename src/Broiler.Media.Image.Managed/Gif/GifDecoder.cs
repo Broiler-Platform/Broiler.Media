@@ -504,5 +504,28 @@ internal static class GifDecoder
             return value;
         }
     }
+
+    /// <summary>
+    /// Reads the logical screen descriptor, which the format places immediately
+    /// after the six-byte signature at a fixed offset.
+    /// </summary>
+    public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
+    {
+        info = null;
+        if (!IsGif(data) || data.Length < 11)
+            return false;
+
+        int width = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(6, 2));
+        int height = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(8, 2));
+        if (width <= 0 || height <= 0)
+            return false;
+
+        // A GIF pixel is always one palette index; the packed field's low three
+        // bits give the palette's depth.
+        int bitDepth = (data[10] & 0x07) + 1;
+
+        info = new ImageInfo(width, height, 1, bitDepth, "GIF", "image/gif");
+        return true;
+    }
 }
 

@@ -258,4 +258,64 @@ internal static class WebpDecoder
         value[1] == (byte)fourCc[1] &&
         value[2] == (byte)fourCc[2] &&
         value[3] == (byte)fourCc[3];
+
+    /// <summary>
+    /// Reads the first RIFF chunk after the WEBP signature. The canvas size lives
+    /// in a different place in each of the three chunk types, and no other chunk
+    /// is examined.
+    /// </summary>
+    public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
+    {
+        info = null;
+        if (!IsWebp(data) || data.Length < 20)
+            return false;
+
+        ReadOnlySpan<byte> fourCc = data.Slice(12, 4);
+        ReadOnlySpan<byte> payload = data[20..];
+
+        int width, height;
+        if (FourCcIs(fourCc, "VP8X"))
+        {
+            // Extended format: four flag bytes, then the canvas size as two
+            // 24-bit little-endian values, each stored one less than it is.
+            if (payload.Length < 10)
+                return false;
+            width = ReadUInt24(payload.Slice(4, 3)) + 1;
+            height = ReadUInt24(payload.Slice(7, 3)) + 1;
+        }
+        else if (FourCcIs(fourCc, "VP8L"))
+        {
+            // Lossless: a signature byte, then 14 bits of width-1 and 14 of
+            // height-1 packed little-endian across the next four bytes.
+            if (payload.Length < 5 || payload[0] != 0x2F)
+                return false;
+            uint bits = BinaryPrimitives.ReadUInt32LittleEndian(payload.Slice(1, 4));
+            width = (int)(bits & 0x3FFF) + 1;
+            height = (int)((bits >> 14) & 0x3FFF) + 1;
+        }
+        else if (FourCcIs(fourCc, "VP8 "))
+        {
+            // Lossy: a three-byte frame tag, the three-byte start code, then the
+            // size as two 14-bit values each sharing a byte with a scale field.
+            if (payload.Length < 10 || payload[3] != 0x9D || payload[4] != 0x01 || payload[5] != 0x2A)
+                return false;
+            width = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(6, 2)) & 0x3FFF;
+            height = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(8, 2)) & 0x3FFF;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (width <= 0 || height <= 0)
+            return false;
+
+        // WebP decodes to RGBA whichever chunk carried it, and stores eight bits
+        // a channel in every profile this codec admits.
+        info = new ImageInfo(width, height, 4, 8, "WebP", "image/webp");
+        return true;
+    }
+
+    private static int ReadUInt24(ReadOnlySpan<byte> value) =>
+        value[0] | (value[1] << 8) | (value[2] << 16);
 }

@@ -69,5 +69,9 @@ public sealed class JpegImageCodec : ImageCodec
         byte[] encoded = Encode(sequence.FirstFrame, effectiveOptions.Quality);
         await output.WriteAsync(encoded, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Reads what the JPEG header declares, decoding nothing.</summary>
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
+        JpegDecoder.TryInspect(data, out info);
 }
 
