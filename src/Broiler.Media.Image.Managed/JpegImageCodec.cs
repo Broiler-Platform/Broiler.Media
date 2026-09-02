@@ -36,7 +36,15 @@ public sealed class JpegImageCodec : ImageCodec
         return ValueTask.FromResult(result);
     }
 
-    public ImageBuffer Decode(ReadOnlySpan<byte> data) => JpegDecoder.Decode(data);
+    /// <summary>
+    /// Decodes a JPEG. <paramref name="transform"/> says how a three-component
+    /// frame's channels are to be read; a caller that has resolved an Adobe
+    /// <c>APP14</c> declaration, or a container's own, passes what it found.
+    /// </summary>
+    public ImageBuffer Decode(
+        ReadOnlySpan<byte> data,
+        JpegColorTransform transform = JpegColorTransform.YCbCr) =>
+        JpegDecoder.Decode(data, transform);
 
     public byte[] Encode(ImageBuffer buffer, int quality = 100) => JpegEncoder.Encode(buffer, quality);
 

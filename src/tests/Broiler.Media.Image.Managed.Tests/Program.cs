@@ -39,6 +39,7 @@ internal static class Program
             ("Every codec inspects its own encoded output", InspectionMatchesEncodedSize),
             ("Inspection reads a header without decoding", InspectionDoesNotDecode),
             ("Inspection refuses foreign, truncated and empty data", InspectionRefusesWhatItCannotRead),
+            ("A JPEG declaring no colour transform is read as RGB", NoColorTransformIsReadAsRgb),
         };
 
         int passed = 0;
@@ -621,6 +622,53 @@ internal static class Program
 
         return ValueTask.CompletedTask;
     }
+
+    /// <summary>
+    /// A three-channel JPEG is YCbCr by convention, and an Adobe APP14 marker can
+    /// say the channels are already RGB. The decoder cannot resolve that alone —
+    /// a container may carry its own declaration — so it takes the answer and
+    /// this proves it acts on it.
+    /// </summary>
+    private static ValueTask NoColorTransformIsReadAsRgb()
+    {
+        // A uniform mid-grey. Its YCbCr is Y = the grey level, Cb = Cr = 128, so
+        // the two readings of the same bytes are far apart and both predictable:
+        // converting gives the grey back, and not converting exposes the stored
+        // chroma as green and blue.
+        const byte Grey = 100;
+        byte[] rgba = new byte[16 * 16 * 4];
+        for (int i = 0; i < rgba.Length; i += 4)
+        {
+            rgba[i] = Grey;
+            rgba[i + 1] = Grey;
+            rgba[i + 2] = Grey;
+            rgba[i + 3] = 255;
+        }
+
+        var codec = new JpegImageCodec();
+        byte[] jpeg = codec.Encode(new ImageBuffer(16, 16, rgba), quality: 100);
+
+        ImageBuffer converted = codec.Decode(jpeg);
+        ImageBuffer asStored = codec.Decode(jpeg, JpegColorTransform.None);
+
+        Assert.True(Near(converted.Rgba[0], Grey), $"Converted red should be the grey, got {converted.Rgba[0]}.");
+        Assert.True(Near(converted.Rgba[1], Grey), $"Converted green should be the grey, got {converted.Rgba[1]}.");
+        Assert.True(Near(converted.Rgba[2], Grey), $"Converted blue should be the grey, got {converted.Rgba[2]}.");
+
+        Assert.True(Near(asStored.Rgba[0], Grey), $"Untransformed red is the luma plane, got {asStored.Rgba[0]}.");
+        Assert.True(Near(asStored.Rgba[1], 128), $"Untransformed green is Cb, got {asStored.Rgba[1]}.");
+        Assert.True(Near(asStored.Rgba[2], 128), $"Untransformed blue is Cr, got {asStored.Rgba[2]}.");
+
+        // The flag has to change something, or the test above proves nothing.
+        Assert.True(
+            asStored.Rgba[1] != converted.Rgba[1],
+            "Reading the same bytes both ways produced the same pixels.");
+
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Within one step, which absorbs the codec's own rounding.</summary>
+    private static bool Near(byte actual, int expected) => Math.Abs(actual - expected) <= 2;
 
     private static ImageBuffer MakeGradient(int width, int height)
     {
