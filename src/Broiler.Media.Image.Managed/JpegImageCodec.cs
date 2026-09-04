@@ -43,8 +43,9 @@ public sealed class JpegImageCodec : ImageCodec
     /// </summary>
     public ImageBuffer Decode(
         ReadOnlySpan<byte> data,
-        JpegColorTransform transform = JpegColorTransform.YCbCr) =>
-        JpegDecoder.Decode(data, transform);
+        JpegColorTransform transform = JpegColorTransform.YCbCr,
+        MediaLimits? limits = null) =>
+        JpegDecoder.Decode(data, transform, limits);
 
     public byte[] Encode(ImageBuffer buffer, int quality = 100) => JpegEncoder.Encode(buffer, quality);
 
@@ -54,7 +55,10 @@ public sealed class JpegImageCodec : ImageCodec
         CancellationToken cancellationToken = default)
     {
         byte[] data = await EncodedInputReader.ReadAllAsync(input, options, cancellationToken).ConfigureAwait(false);
-        return ImageSequence.Static(Decode(data));
+        return ImageSequence.Static(Decode(
+            data,
+            JpegColorTransform.YCbCr,
+            (options ?? new ImageDecodeOptions()).Limits));
     }
 
     public override async ValueTask EncodeAsync(

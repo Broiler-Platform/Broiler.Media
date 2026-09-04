@@ -42,6 +42,8 @@ internal static class Program
             ("A JPEG declaring no colour transform is read as RGB", NoColorTransformIsReadAsRgb),
         };
 
+        JpegLimitTests.Register(tests);
+
         int passed = 0;
         var failures = new List<string>();
         Console.WriteLine($"Running {tests.Count} managed image codec test(s)...\n");

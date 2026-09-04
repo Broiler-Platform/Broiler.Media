@@ -44,10 +44,15 @@ internal static class JpegDecoder
 
     public static ImageBuffer Decode(
         ReadOnlySpan<byte> data,
-        JpegColorTransform transform = JpegColorTransform.YCbCr)
+        JpegColorTransform transform = JpegColorTransform.YCbCr,
+        MediaLimits? limits = null)
     {
         if (!IsJpeg(data))
             throw new FormatException("Data does not start with a JPEG SOI marker.");
+
+        limits ??= MediaLimits.Default;
+        int segments = 0;
+        int scans = 0;
 
         byte[] bytes = data.ToArray();
         var quant = new int[4][];
@@ -81,6 +86,12 @@ internal static class JpegDecoder
             int length = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(pos, 2));
             if (length < 2 || pos + length > bytes.Length)
                 throw new FormatException("Corrupt JPEG segment length.");
+            if (++segments > limits.MaxMarkerSegments)
+            {
+                throw Exceeded(
+                    "JPEG declares more than " + limits.MaxMarkerSegments + " marker segments.");
+            }
+
             ReadOnlySpan<byte> segment = bytes.AsSpan(pos + 2, length - 2);
 
             switch (marker)
@@ -93,16 +104,18 @@ internal static class JpegDecoder
                     break;
                 case JpegTables.MarkerDri:
                     restartInterval = BinaryPrimitives.ReadUInt16BigEndian(segment[..2]);
+                    if (restartInterval > limits.MaxRestartInterval)
+                        throw Exceeded("JPEG declares a restart interval past the limit.");
                     break;
                 case JpegTables.MarkerSof0:
                 case 0xC1: // extended sequential (decodes like baseline at 8-bit)
                     components = ReadFrameHeader(segment, out width, out height);
-                    SetupComponents(components, width, height);
+                    SetupComponents(components, width, height, limits);
                     progressive = false;
                     break;
                 case JpegTables.MarkerSof2:
                     components = ReadFrameHeader(segment, out width, out height);
-                    SetupComponents(components, width, height);
+                    SetupComponents(components, width, height, limits);
                     progressive = true;
                     break;
                 case 0xC3: // lossless
@@ -115,6 +128,8 @@ internal static class JpegDecoder
                 {
                     if (components is null)
                         throw new FormatException("JPEG SOS encountered before a frame header.");
+                    if (++scans > limits.MaxScans)
+                        throw Exceeded("JPEG declares more than " + limits.MaxScans + " scans.");
                     Component[] scanComponents = ReadScanHeader(
                         segment, components, dcTables, acTables, progressive,
                         out int ss, out int se, out int ah, out int al);
@@ -142,11 +157,31 @@ internal static class JpegDecoder
 
     // ---- Geometry -------------------------------------------------------
 
-    private static void SetupComponents(Component[] components, int width, int height)
+    private static void SetupComponents(
+        Component[] components,
+        int width,
+        int height,
+        MediaLimits limits)
     {
+        // Dimensions first, and separately from the pixel count: the product is
+        // what overflows, so a decoder that multiplies before checking has
+        // already lost. 65535 x 65535 at 4x4 sampling computes a coefficient
+        // count past int in the arithmetic below.
+        if (width <= 0 || height <= 0)
+            throw new FormatException("JPEG frame header declares an empty image.");
+        if (width > limits.MaxImageDimension || height > limits.MaxImageDimension)
+            throw Exceeded("JPEG frame is larger than " + limits.MaxImageDimension + " in one dimension.");
+        if ((long)width * height > limits.MaxImagePixels)
+            throw Exceeded("JPEG frame declares more pixels than the limit allows.");
+        if (components.Length > limits.MaxComponents)
+            throw Exceeded("JPEG frame declares more than " + limits.MaxComponents + " components.");
+
         int hMax = 0, vMax = 0;
         foreach (Component c in components)
         {
+            if (c.H > limits.MaxSamplingFactor || c.V > limits.MaxSamplingFactor)
+                throw Exceeded("JPEG component declares a sampling factor past the limit.");
+
             hMax = Math.Max(hMax, c.H);
             vMax = Math.Max(vMax, c.V);
         }
@@ -154,6 +189,8 @@ internal static class JpegDecoder
         int mcusPerLine = (width + hMax * 8 - 1) / (hMax * 8);
         int mcusPerColumn = (height + vMax * 8 - 1) / (vMax * 8);
 
+        long totalBlocks = 0;
+        long coefficientBytes = 0;
         foreach (Component c in components)
         {
             c.AllocBlocksPerLine = mcusPerLine * c.H;
@@ -164,9 +201,25 @@ internal static class JpegDecoder
             c.BlocksPerLine = (samplesPerLine + 7) / 8;
             c.BlocksPerColumn = (samplesPerColumn + 7) / 8;
 
-            c.Coefficients = new int[c.AllocBlocksPerLine * allocBlocksPerColumn * 64];
+            // In long, so a block count that would overflow int is refused rather
+            // than wrapping into a small allocation that passes every later check.
+            long blocks = (long)c.AllocBlocksPerLine * allocBlocksPerColumn;
+            totalBlocks += blocks;
+            if (totalBlocks > limits.MaxBlocks)
+                throw Exceeded("JPEG frame needs more blocks than the work budget allows.");
+
+            long coefficients = blocks * 64L;
+            coefficientBytes += coefficients * sizeof(int);
+            if (coefficientBytes > limits.MaxCoefficientBytes)
+                throw Exceeded("JPEG frame needs more coefficient memory than the limit allows.");
+
+            c.Coefficients = new int[coefficients];
         }
     }
+
+    /// <summary>A limit refusal, in the shape the rest of Media reports one.</summary>
+    private static MediaException Exceeded(string message) =>
+        new(new MediaError(MediaErrorCode.LimitExceeded, message));
 
     // ---- Scan decoding (baseline + progressive) -------------------------
 
