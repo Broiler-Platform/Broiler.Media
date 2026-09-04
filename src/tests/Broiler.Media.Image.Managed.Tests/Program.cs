@@ -43,6 +43,7 @@ internal static class Program
         };
 
         JpegLimitTests.Register(tests);
+        DecodePathTests.Register(tests);
 
         int passed = 0;
         var failures = new List<string>();

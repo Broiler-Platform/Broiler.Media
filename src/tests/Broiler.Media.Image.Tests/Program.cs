@@ -265,11 +265,8 @@ internal static class Program
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(MediaProbeResult.NoMatch(MediaKind.Image));
 
-        public override ValueTask<ImageSequence> DecodeAsync(
-            MediaInput input,
-            ImageDecodeOptions? options = null,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(ImageSequence.Static(Rgba1x1()));
+        protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options) =>
+            ImageSequence.Static(Rgba1x1());
     }
 }
 

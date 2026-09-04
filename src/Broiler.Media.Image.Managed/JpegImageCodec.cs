@@ -49,16 +49,10 @@ public sealed class JpegImageCodec : ImageCodec
 
     public byte[] Encode(ImageBuffer buffer, int quality = 100) => JpegEncoder.Encode(buffer, quality);
 
-    public override async ValueTask<ImageSequence> DecodeAsync(
-        MediaInput input,
-        ImageDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    /// <summary>The CPU half; both public paths reach the image through this.</summary>
+    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options)
     {
-        byte[] data = await EncodedInputReader.ReadAllAsync(input, options, cancellationToken).ConfigureAwait(false);
-        return ImageSequence.Static(Decode(
-            data,
-            JpegColorTransform.YCbCr,
-            (options ?? new ImageDecodeOptions()).Limits));
+        return ImageSequence.Static(Decode(data, JpegColorTransform.YCbCr, options.Limits));
     }
 
     public override async ValueTask EncodeAsync(
