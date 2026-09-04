@@ -23,10 +23,47 @@ public abstract class ImageCodec : MediaCodec
     /// </summary>
     public const int MaxInspectionBytes = 128 * 1024;
 
-    public abstract ValueTask<ImageSequence> DecodeAsync(
+    /// <summary>
+    /// Decodes an image already in memory. The CPU half of decoding, with no I/O
+    /// in it.
+    /// </summary>
+    /// <remarks>
+    /// This is what a codec implements, and it is why the two public paths below
+    /// cannot drift apart: they differ in how the bytes are fetched and in
+    /// nothing else, so the admitted modes, the colour handling and the limits
+    /// are identical on both by construction rather than by review
+    /// (PDF roadmap §6.5).
+    /// </remarks>
+    protected abstract ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options);
+
+    /// <summary>Reads and decodes on the calling thread.</summary>
+    /// <remarks>
+    /// For a caller that has no async context to return to — a synchronous
+    /// pipeline, a console tool. It does sync I/O rather than blocking on the
+    /// async path, because blocking on an async read is what deadlocks where
+    /// continuations run on one thread.
+    /// </remarks>
+    public ImageSequence Decode(
         MediaInput input,
         ImageDecodeOptions? options = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default)
+    {
+        options ??= new ImageDecodeOptions();
+        return DecodeCore(EncodedInputReader.ReadAll(input, options, cancellationToken), options);
+    }
+
+    /// <summary>Reads asynchronously, then decodes on the calling thread.</summary>
+    public virtual async ValueTask<ImageSequence> DecodeAsync(
+        MediaInput input,
+        ImageDecodeOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        options ??= new ImageDecodeOptions();
+        byte[] data = await EncodedInputReader
+            .ReadAllAsync(input, options, cancellationToken)
+            .ConfigureAwait(false);
+        return DecodeCore(data, options);
+    }
 
     /// <summary>
     /// Reads what <paramref name="data"/>'s header declares about the image,

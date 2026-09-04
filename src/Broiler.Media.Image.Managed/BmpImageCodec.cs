@@ -40,12 +40,9 @@ public sealed class BmpImageCodec : ImageCodec
 
     public byte[] Encode(ImageBuffer buffer) => BmpEncoder.Encode(buffer);
 
-    public override async ValueTask<ImageSequence> DecodeAsync(
-        MediaInput input,
-        ImageDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    /// <summary>The CPU half; both public paths reach the image through this.</summary>
+    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options)
     {
-        byte[] data = await EncodedInputReader.ReadAllAsync(input, options, cancellationToken).ConfigureAwait(false);
         return ImageSequence.Static(Decode(data));
     }
 

@@ -44,15 +44,12 @@ public sealed class GifImageCodec : ImageCodec
 
     public byte[] EncodeAnimation(ImageSequence sequence) => GifEncoder.EncodeAnimation(sequence);
 
-    public override async ValueTask<ImageSequence> DecodeAsync(
-        MediaInput input,
-        ImageDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    /// <summary>The CPU half; both public paths reach the image through this.</summary>
+    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options)
     {
-        byte[] data = await EncodedInputReader.ReadAllAsync(input, options, cancellationToken).ConfigureAwait(false);
-        return options?.PreserveAnimation == false
-            ? ImageSequence.Static(Decode(data))
-            : DecodeAnimation(data);
+        return options.PreserveAnimation
+            ? DecodeAnimation(data)
+            : ImageSequence.Static(Decode(data));
     }
 
     public override async ValueTask EncodeAsync(
