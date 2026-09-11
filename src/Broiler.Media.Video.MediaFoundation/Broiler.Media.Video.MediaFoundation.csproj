@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Broiler.Media.Video.MediaFoundation</RootNamespace>
     <AssemblyName>Broiler.Media.Video.MediaFoundation</AssemblyName>
     <Description>Windows Media Foundation-backed video implementation for Broiler.Media.Video.</Description>
@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Configurations>Debug;Release;Debug-Windows;Release-Windows</Configurations>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

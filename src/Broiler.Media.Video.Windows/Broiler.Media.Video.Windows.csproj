@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Broiler.Media.Video.Windows</RootNamespace>
     <AssemblyName>Broiler.Media.Video.Windows</AssemblyName>
     <Description>Windows presentation-target contracts for Broiler.Media.Video. Declares the borrowed-HWND video target a Windows video backend consumes; carries no implementation and no windowing code.</Description>
@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Configurations>Debug;Release;Debug-Windows;Release-Windows</Configurations>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
