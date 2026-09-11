@@ -60,7 +60,7 @@ export async function readVersions(source, packageIds, headers = {}, fetchImpl =
 }
 
 function readPackages() {
-  const solution = readFileSync(resolve(root, 'Broiler.Input.slnx'), 'utf8');
+  const solution = readFileSync(resolve(root, 'Broiler.Media.slnx'), 'utf8');
   const packages = [];
   for (const [, project] of solution.matchAll(/<Project\s+Path="([^"]+)"/g)) {
     const output = execFileSync('dotnet', [
