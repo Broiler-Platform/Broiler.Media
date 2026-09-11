@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -26,4 +26,8 @@
     <InternalsVisibleTo Include="Broiler.Media.Video.MediaFoundation.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="$(BroilerNativeRoot)/src/Broiler.Native.Windows/Broiler.Native.Windows.csproj" Condition="Exists('$(BroilerNativeRoot)/src/Broiler.Native.Windows/Broiler.Native.Windows.csproj')" />
+    <PackageReference Include="Broiler.Native.Windows" Version="$(BroilerNativeVersion)" Condition="!Exists('$(BroilerNativeRoot)/src/Broiler.Native.Windows/Broiler.Native.Windows.csproj')" />
+  </ItemGroup>
 </Project>

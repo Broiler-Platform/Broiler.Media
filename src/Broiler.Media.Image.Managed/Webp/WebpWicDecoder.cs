@@ -1,3 +1,4 @@
+using static Broiler.Native.Windows.Wic.WicNative;
 using System;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
@@ -8,9 +9,6 @@ namespace Broiler.Media.Image.Managed.Webp;
 
 internal static class WebpWicDecoder
 {
-    private const uint ClsctxInprocServer = 0x1;
-    private const uint CoInitMultithreaded = 0x0;
-    private const int RpcEChangedMode = unchecked((int)0x80010106);
     // WIC failures that mean "there is no usable WebP decoder on this machine"
     // rather than "this data is wrong". The WebP decoder ships as an optional
     // Windows component: present on a typical desktop, and on Windows Server and
@@ -18,15 +16,6 @@ internal static class WebpWicDecoder
     // - windows-latest returns COMPONENTINITIALIZEFAILURE, not COMPONENTNOTFOUND.
     // None of these say anything about the bytes, so they must not surface as a
     // FormatException claiming the input was malformed.
-    private const int WinCodecErrUnknownImageFormat = unchecked((int)0x88982F07);
-    private const int WinCodecErrComponentNotFound = unchecked((int)0x88982F50);
-    private const int WinCodecErrInvalidRegistration = unchecked((int)0x88982F8A);
-    private const int WinCodecErrComponentInitializeFailure = unchecked((int)0x88982F8B);
-
-    private static readonly Guid ClsidWicImagingFactory = new("cacaf262-9370-4615-a13b-9f5539da4c0a");
-    private static readonly Guid IidWicImagingFactory = new("ec5ec8a9-c395-4314-9c77-54d7a935ff70");
-    private static readonly Guid PixelFormat32bppRgba = new("f5c7ad2d-6a8d-43dd-a7a8-a29935261ae9");
-    private static readonly Guid PixelFormat32bppBgra = new("6fddc324-4e03-4bfe-b185-3d77768dc90f");
 
     public static ImageBuffer Decode(ReadOnlySpan<byte> webpData)
     {
@@ -233,144 +222,4 @@ internal static class WebpWicDecoder
             Marshal.FinalReleaseComObject(comObject);
     }
 
-    [DllImport("ole32.dll")]
-    private static extern int CoCreateInstance(ref Guid rclsid, IntPtr pUnkOuter, uint dwClsContext, ref Guid riid,
-        [MarshalAs(UnmanagedType.Interface)] out IWICImagingFactory ppv);
-
-    [DllImport("ole32.dll")]
-    private static extern int CoInitializeEx(IntPtr pvReserved, uint dwCoInit);
-
-    [DllImport("ole32.dll")]
-    private static extern void CoUninitialize();
-
-    [DllImport("ole32.dll")]
-    private static extern int CreateStreamOnHGlobal(IntPtr hGlobal, bool fDeleteOnRelease, out IStream ppstm);
-
-    [ComImport]
-    [Guid("3b16811b-6a43-4ec9-a813-3d930c13b940")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IWICBitmapFrameDecode
-    {
-        [PreserveSig]
-        int GetSize(out uint puiWidth, out uint puiHeight);
-
-        [PreserveSig]
-        int GetPixelFormat(out Guid pPixelFormat);
-
-        [PreserveSig]
-        int GetResolution(out double pDpiX, out double pDpiY);
-
-        [PreserveSig]
-        int CopyPalette(IntPtr pIPalette);
-
-        [PreserveSig]
-        int CopyPixels(IntPtr prc, uint cbStride, uint cbBufferSize, IntPtr pbBuffer);
-
-        [PreserveSig]
-        int GetMetadataQueryReader(out IntPtr ppIMetadataQueryReader);
-
-        [PreserveSig]
-        int GetColorContexts(uint cCount, IntPtr ppIColorContexts, out uint pcActualCount);
-
-        [PreserveSig]
-        int GetThumbnail(out IntPtr ppIThumbnail);
-    }
-
-    [ComImport]
-    [Guid("00000301-a8f2-4877-ba0a-fd2b6645fb94")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IWICFormatConverter
-    {
-        [PreserveSig]
-        int GetSize(out uint puiWidth, out uint puiHeight);
-
-        [PreserveSig]
-        int GetPixelFormat(out Guid pPixelFormat);
-
-        [PreserveSig]
-        int GetResolution(out double pDpiX, out double pDpiY);
-
-        [PreserveSig]
-        int CopyPalette(IntPtr pIPalette);
-
-        [PreserveSig]
-        int CopyPixels(IntPtr prc, uint cbStride, uint cbBufferSize, IntPtr pbBuffer);
-
-        [PreserveSig]
-        int Initialize(IWICBitmapFrameDecode pISource, ref Guid dstFormat, int dither, IntPtr pIPalette,
-            double alphaThresholdPercent, int paletteTranslate);
-
-        [PreserveSig]
-        int CanConvert(ref Guid srcPixelFormat, ref Guid dstPixelFormat, out int pfCanConvert);
-    }
-
-    [ComImport]
-    [Guid("9edde9e7-8dee-47ea-99df-e6faf2ed44bf")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IWICBitmapDecoder
-    {
-        [PreserveSig]
-        int QueryCapability(IStream pIStream, out uint pdwCapability);
-
-        [PreserveSig]
-        int Initialize(IStream pIStream, int cacheOptions);
-
-        [PreserveSig]
-        int GetContainerFormat(out Guid pguidContainerFormat);
-
-        [PreserveSig]
-        int GetDecoderInfo(out IntPtr ppIDecoderInfo);
-
-        [PreserveSig]
-        int CopyPalette(IntPtr pIPalette);
-
-        [PreserveSig]
-        int GetMetadataQueryReader(out IntPtr ppIMetadataQueryReader);
-
-        [PreserveSig]
-        int GetPreview(out IntPtr ppIBitmapSource);
-
-        [PreserveSig]
-        int GetColorContexts(uint cCount, IntPtr ppIColorContexts, out uint pcActualCount);
-
-        [PreserveSig]
-        int GetThumbnail(out IntPtr ppIThumbnail);
-
-        [PreserveSig]
-        int GetFrameCount(out uint pCount);
-
-        [PreserveSig]
-        int GetFrame(uint index, out IWICBitmapFrameDecode ppIBitmapFrame);
-    }
-
-    [ComImport]
-    [Guid("ec5ec8a9-c395-4314-9c77-54d7a935ff70")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IWICImagingFactory
-    {
-        [PreserveSig]
-        int CreateDecoderFromFilename([MarshalAs(UnmanagedType.LPWStr)] string wzFilename, IntPtr pguidVendor,
-            uint dwDesiredAccess, int metadataOptions, out IWICBitmapDecoder ppIDecoder);
-
-        [PreserveSig]
-        int CreateDecoderFromStream(IStream pIStream, IntPtr pguidVendor, int metadataOptions, out IWICBitmapDecoder ppIDecoder);
-
-        [PreserveSig]
-        int CreateDecoderFromFileHandle(IntPtr hFile, IntPtr pguidVendor, int metadataOptions, out IWICBitmapDecoder ppIDecoder);
-
-        [PreserveSig]
-        int CreateComponentInfo(ref Guid clsidComponent, out IntPtr ppIInfo);
-
-        [PreserveSig]
-        int CreateDecoder(ref Guid guidContainerFormat, IntPtr pguidVendor, out IWICBitmapDecoder ppIDecoder);
-
-        [PreserveSig]
-        int CreateEncoder(ref Guid guidContainerFormat, IntPtr pguidVendor, out IntPtr ppIEncoder);
-
-        [PreserveSig]
-        int CreatePalette(out IntPtr ppIPalette);
-
-        [PreserveSig]
-        int CreateFormatConverter(out IWICFormatConverter ppIFormatConverter);
-    }
 }

@@ -146,6 +146,12 @@ Broiler.Media.slnx       solution over every project in src/ and src/tests/
 The repository is standalone and has no Graphics submodule or package dependency.
 The application supplies the borrowed HWND through `IHwndVideoOutput`.
 
+WIC and Media Foundation declarations are shared through `Broiler.Native.Windows`.
+Codec behavior and Media error mapping remain here. A sibling `Broiler.Native`
+checkout supplies project references; set `BroilerNativeRoot` for another location.
+Without sources, builds use `BroilerNativeVersion` packages (initially
+`0.1.0-preview.1`). Publish Native before releasing these consumer changes.
+
 ## Building and testing
 
 ```bash

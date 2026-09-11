@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
 
   <!-- Is the project being built one of THIS repository's own projects (under
        src/), or a project belonging to a component checked out INSIDE this one
@@ -61,5 +61,11 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <IsTrimmable>true</IsTrimmable>
     <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup>
+    <BroilerNativeRoot Condition="'$(BroilerNativeRoot)' == '' And Exists('$(MSBuildThisFileDirectory)../Broiler.Native/src')">$(MSBuildThisFileDirectory)../Broiler.Native</BroilerNativeRoot>
+    <!-- Native projects are outside this solution; retain the caller's configuration. -->
+    <ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform>
+    <BroilerNativeVersion Condition="'$(BroilerNativeVersion)' == ''">0.1.0-preview.1</BroilerNativeVersion>
   </PropertyGroup>
 </Project>
