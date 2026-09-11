@@ -10,8 +10,12 @@ on:
           - github
           - nuget
         default: github
+      version-suffix:
+        description: 'Optional preview.N (must be unused and at least the next preview). Empty selects automatically.'
+        type: string
+        default: ''
       dry-run:
-        description: Pack and upload the artifact without reserving a version or pushing
+        description: Pack and upload the artifact, but do not push to the feed
         type: boolean
         default: true
   push:
@@ -19,77 +23,99 @@ on:
       - 'v*'
 
 permissions:
-  contents: write # Reserve preview versions with publish/* tags.
+  contents: read
   packages: write
 
-# Version allocation is repository-wide, across branches and both feeds.
 concurrency:
+  # Every branch and tag shares the version sequence.
   group: publish
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish to ${{ github.event_name == 'push' && 'nuget' || inputs.target }}
-    runs-on: windows-latest
+  # Both provider families are exercised before anything is pushed. Without
+  # this, a tag push would publish a commit whose evdev suite never ran: the
+  # publish job is a Windows host, and the Linux runner is built linux-x64.
+  validate:
+    name: Validate ${{ matrix.configuration }}
+    runs-on: ${{ matrix.os }}
+
     defaults:
       run:
-        shell: pwsh
-    env:
-      TARGET: ${{ github.event_name == 'push' && 'nuget' || inputs.target }}
-      DRY_RUN: ${{ github.event_name == 'push' && 'false' || inputs.dry-run }}
-      CONFIGURATION: Release
+        shell: bash
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: windows-latest
+            configuration: Release
 
     steps:
       - name: Check out
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
-      - name: Test version allocation
-        run: ./eng/test-package-version.ps1
+      - name: Build
+        run: dotnet build Broiler.Media.slnx -c ${{ matrix.configuration }} --nologo
+
+      - name: Test
+        run: bash ./eng/run-tests.sh ${{ matrix.configuration }}
+
+      - name: Test preview version selection
+        run: node --test eng/resolve-preview-version.test.mjs
+
+  publish:
+    name: Publish to ${{ github.event_name == 'push' && 'nuget' || inputs.target }}
+    needs: validate
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      # A tag push is always a real nuget.org release. A manual run chooses,
+      # and defaults to a dry run so the workflow is safe to try out.
+      TARGET: ${{ github.event_name == 'push' && 'nuget' || inputs.target }}
+      DRY_RUN: ${{ github.event_name == 'push' && 'false' || inputs.dry-run }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Resolve version
         id: version
-        run: |
-          $base = dotnet msbuild src/Broiler.Media/Broiler.Media.csproj -getProperty:PackageVersion
-          if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the repository version.' }
-          $arguments = @{ BaseVersion = $base.Trim(); RunId = $env:GITHUB_RUN_ID }
-          if ($env:GITHUB_REF_TYPE -eq 'tag') { $arguments.Tag = $env:GITHUB_REF_NAME }
-          $version = ./eng/package-version.ps1 @arguments
-          "base=$($base.Trim())" >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $version -> $env:TARGET (dry-run: $env:DRY_RUN)"
+        env:
+          VERSION_SUFFIX: ${{ inputs.version-suffix }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node eng/resolve-preview-version.mjs
 
       - name: Require a NuGet.org API key
         if: env.TARGET == 'nuget' && env.DRY_RUN != 'true'
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          if (-not $env:NUGET_API_KEY) { throw 'Publishing to nuget.org needs the NUGET_API_KEY repository secret.' }
+          if [ -z "${{ secrets.NUGET_API_KEY }}" ]; then
+            echo "::error::Publishing to nuget.org needs the NUGET_API_KEY repository secret."
+            exit 1
+          fi
 
-      - name: Build
-        env:
-          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
-        run: dotnet build Broiler.Media.slnx -c $env:CONFIGURATION --nologo "-p:Version=$env:PACKAGE_VERSION"
-
-      - name: Test
-        shell: bash
-        run: ./eng/run-tests.sh "$CONFIGURATION"
-
+      # Both configurations, because neither one alone covers the suite. The
+      # neutral and Android packages fall out of both; the builds are
+      # deterministic, so the second pack reproduces them byte for byte.
       - name: Pack
-        env:
-          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
-        run: dotnet pack Broiler.Media.slnx -c $env:CONFIGURATION --no-build --nologo "-p:Version=$env:PACKAGE_VERSION" -o ./artifacts
-
-      - name: Verify packages
-        env:
-          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
-        run: ./eng/verify-packages.ps1 -Version $env:PACKAGE_VERSION
+        run: |
+          set -euo pipefail
+          dotnet pack Broiler.Media.slnx -c Release --nologo ${{ steps.version.outputs.version_args }} -o ./artifacts
+          echo "Packed:"
+          ls -1 ./artifacts
 
       - name: Upload packages
         uses: actions/upload-artifact@v7
@@ -98,56 +124,37 @@ jobs:
           path: artifacts/*
           if-no-files-found: error
 
-      - name: Reserve version
-        if: env.DRY_RUN != 'true'
-        env:
-          BASE_VERSION: ${{ steps.version.outputs.base }}
-          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          $arguments = @{
-            BaseVersion = $env:BASE_VERSION
-            RunId = $env:GITHUB_RUN_ID
-            Version = $env:PACKAGE_VERSION
-            Reserve = $true
-          }
-          if ($env:GITHUB_REF_TYPE -eq 'tag') { $arguments.Tag = $env:GITHUB_REF_NAME }
-          ./eng/package-version.ps1 @arguments
+      # GitHub Packages does not accept snupkg symbol packages, hence
+      # --no-symbols. The feed owner must match the package RepositoryUrl,
+      # which SourceLink fills in from this checkout's origin.
+      - name: Push to GitHub Packages
+        if: env.TARGET == 'github' && env.DRY_RUN != 'true'
+        run: >
+          dotnet nuget push artifacts/*.nupkg
+          --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --no-symbols
 
-      - name: Push packages
-        if: env.DRY_RUN != 'true'
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          GH_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if ($env:TARGET -eq 'github') {
-            $source = "https://nuget.pkg.github.com/$env:GITHUB_REPOSITORY_OWNER/index.json"
-            $key = $env:GH_PACKAGES_TOKEN
-            $extra = @('--no-symbols')
-          } else {
-            $source = 'https://api.nuget.org/v3/index.json'
-            $key = $env:NUGET_API_KEY
-            $extra = @()
-          }
-          # Skip duplicates only to recover a partial push on a rerun of the same reservation.
-          # PowerShell does not expand globs for native commands. Pass concrete paths
-          # so package discovery does not depend on NuGet's platform-specific glob handling.
-          $packages = @(Get-ChildItem -LiteralPath ./artifacts -Filter '*.nupkg' -File | Sort-Object Name)
-          if ($packages.Count -eq 0) { throw 'No NuGet packages found in ./artifacts.' }
-          foreach ($package in $packages) {
-            dotnet nuget push $package.FullName --source $source --api-key $key --skip-duplicate @extra
-            if ($LASTEXITCODE -ne 0) {
-              throw "NuGet push failed for $($package.Name) (exit code $LASTEXITCODE)."
-            }
-          }
+      # Pushing a .nupkg also pushes the .snupkg sitting beside it.
+      - name: Push to NuGet.org
+        if: env.TARGET == 'nuget' && env.DRY_RUN != 'true'
+        run: >
+          dotnet nuget push artifacts/*.nupkg
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ secrets.NUGET_API_KEY }}
 
       - name: Summary
-        env:
-          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          "### Broiler.Media $env:PACKAGE_VERSION" >> $env:GITHUB_STEP_SUMMARY
-          if ($env:DRY_RUN -eq 'true') {
-            'Dry run: verified packages attached; no version reserved or packages pushed.' >> $env:GITHUB_STEP_SUMMARY
-          } else {
-            "Published to $env:TARGET. Reservation: publish/$env:PACKAGE_VERSION." >> $env:GITHUB_STEP_SUMMARY
-          }
-          Get-ChildItem artifacts -Name | ForEach-Object { "- $_" >> $env:GITHUB_STEP_SUMMARY }
+          {
+            echo "### Broiler.Media ${{ steps.version.outputs.version }}"
+            echo
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "Dry run - packages were built and attached to this run, nothing was pushed."
+            else
+              echo "Pushed to \`$TARGET\`."
+            fi
+            echo
+            echo '```'
+            ls -1 ./artifacts
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
