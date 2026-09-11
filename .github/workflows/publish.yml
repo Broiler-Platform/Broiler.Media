@@ -129,7 +129,7 @@ jobs:
             $extra = @()
           }
           # Skip duplicates only to recover a partial push on a rerun of the same reservation.
-          dotnet nuget push artifacts/*.nupkg --source $source --api-key $key --skip-duplicate @extra
+          dotnet nuget push "artifacts/*.nupkg" --source $source --api-key $key --skip-duplicate @extra
 
       - name: Summary
         env:
