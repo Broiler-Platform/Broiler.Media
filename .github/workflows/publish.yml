@@ -129,7 +129,16 @@ jobs:
             $extra = @()
           }
           # Skip duplicates only to recover a partial push on a rerun of the same reservation.
-          dotnet nuget push artifacts/*.nupkg --source $source --api-key $key --skip-duplicate @extra
+          # PowerShell does not expand globs for native commands. Pass concrete paths
+          # so package discovery does not depend on NuGet's platform-specific glob handling.
+          $packages = @(Get-ChildItem -LiteralPath ./artifacts -Filter '*.nupkg' -File | Sort-Object Name)
+          if ($packages.Count -eq 0) { throw 'No NuGet packages found in ./artifacts.' }
+          foreach ($package in $packages) {
+            dotnet nuget push $package.FullName --source $source --api-key $key --skip-duplicate @extra
+            if ($LASTEXITCODE -ne 0) {
+              throw "NuGet push failed for $($package.Name) (exit code $LASTEXITCODE)."
+            }
+          }
 
       - name: Summary
         env:
