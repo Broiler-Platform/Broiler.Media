@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
@@ -57,6 +58,7 @@ internal static class MediaFoundationNative
             Marshal.Release(value);
     }
 
+    [SupportedOSPlatform("windows")]
     internal static void ReleaseComObject(object? value)
     {
         if (value is not null && Marshal.IsComObject(value))

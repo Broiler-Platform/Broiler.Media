@@ -1,10 +1,12 @@
+using Broiler.Media.Video.Windows;
 using System;
+using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
-using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
+[SupportedOSPlatform("windows")]
 public sealed class MediaFoundationVideoSession : IVideoSession
 {
     private readonly object _gate = new();

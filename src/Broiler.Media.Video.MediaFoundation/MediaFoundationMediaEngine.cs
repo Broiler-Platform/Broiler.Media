@@ -1,9 +1,11 @@
+using Broiler.Media.Video.Windows;
 using System;
 using System.Runtime.InteropServices;
-using Broiler.Media.Video.Windows;
+using System.Runtime.Versioning;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
+[SupportedOSPlatform("windows")]
 internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
 {
     private readonly MediaEngineNotify _notify;

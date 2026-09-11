@@ -25,6 +25,8 @@
     <ProjectReference Include="..\Broiler.Media.Audio\Broiler.Media.Audio.csproj" />
     <ProjectReference Include="..\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
     <ProjectReference Include="..\Broiler.Media.Image\Broiler.Media.Image.csproj" />
+    <ProjectReference Include="..\Broiler.Media.Video.MediaFoundation\Broiler.Media.Video.MediaFoundation.csproj" />
+    <ProjectReference Include="..\Broiler.Media.Video.Windows\Broiler.Media.Video.Windows.csproj" />
     <ProjectReference Include="..\Broiler.Media.Video\Broiler.Media.Video.csproj" />
     <ProjectReference Include="..\Broiler.Media\Broiler.Media.csproj" />
   </ItemGroup>
