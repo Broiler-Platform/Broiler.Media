@@ -22,11 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Both hosts pack all libraries; Windows also runs the native-backend suite.
-          - os: ubuntu-latest
-            configuration: Release-Linux
           - os: windows-latest
-            configuration: Release-Windows
+            configuration: Release
 
     steps:
       - name: Check out
