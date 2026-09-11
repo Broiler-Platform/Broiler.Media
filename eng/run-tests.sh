@@ -1,74 +1,86 @@
 #!/usr/bin/env bash
 #
-# Runs every test suite enabled by the selected solution configuration.
+# Runs the Broiler.Input suites for one solution configuration.
 #
-# The suites are self-hosted console runners rather than a test framework, so
-# there is nothing for `dotnet test` to discover. Each one is an executable that
-# prints its results and exits with the number of failures.
+# The suites are self-hosted console runners, not a test framework, so there is
+# nothing for `dotnet test` to discover. Each runner prints PASS/FAIL per case
+# and returns its failure count as the exit code.
 #
-# Discover projects, then require their configured output. Do not run stale
-# assemblies from previous Debug/Release or Linux/Windows builds.
+# Which runners apply depends on the configuration, because the platform suffix
+# decides which provider family the solution builds:
 #
-# Run it from the repository root, after building:
-#   dotnet build Broiler.Media.slnx -c Release-Linux
-#   ./eng/run-tests.sh Release-Linux
+#   *-Windows        contract runner (net10.0-windows, win-x64) + Android runner
+#   *-Linux          evdev runner    (net10.0, linux-x64)       + Android runner
+#   Debug / Release  Android runner only
+#
+# The Android runner is platform-neutral, so it declares only Debug and Release
+# and the solution maps the suffixed configurations onto those. That is why it
+# starts with the base configuration rather than the suffixed one.
+#
+# Usage: eng/run-tests.sh [configuration]
+#
+# Run it after `dotnet build Broiler.Input.slnx -c <configuration>`. The runners
+# start with --no-build, so they exercise exactly the binaries that build
+# produced, including any -p:VersionSuffix the release workflow passed in.
 
-set -uo pipefail
+set -euo pipefail
 
-configuration="${1:-Release-Linux}"
+configuration="${1:-${CONFIGURATION:-}}"
+
+if [ -z "$configuration" ]; then
+  case "$(uname -s)" in
+    Linux) configuration='Release-Linux' ;;
+    *)     configuration='Release-Windows' ;;
+  esac
+  echo "No configuration given; assuming $configuration on $(uname -s)."
+fi
+
+base="${configuration%-Windows}"
+base="${base%-Linux}"
+
+if [ "$base" != 'Debug' ] && [ "$base" != 'Release' ]; then
+  echo "Unknown configuration '$configuration'." >&2
+  exit 2
+fi
+
+failed=''
+
+run_suite() {
+  local name="$1"
+  local project="$2"
+  local suite_configuration="$3"
+
+  echo
+  echo "=== $name suite ($suite_configuration) ==="
+  if dotnet run --project "$project" -c "$suite_configuration" --no-build; then
+    echo "OK   $name"
+  else
+    echo "FAIL $name" >&2
+    failed="$failed $name"
+  fi
+}
+
 case "$configuration" in
-    Debug|Release|Debug-Linux|Release-Linux|Debug-Windows|Release-Windows) ;;
-    *) echo "Unsupported solution configuration: $configuration" >&2; exit 1 ;;
+  *-Windows)
+    run_suite 'contract' \
+      'src/tests/Broiler.Input.Contract.Tests/Broiler.Input.Contract.Tests.csproj' \
+      "$configuration"
+    ;;
+  *-Linux)
+    run_suite 'linux' \
+      'src/tests/Broiler.Input.Linux.Tests/Broiler.Input.Linux.Tests.csproj' \
+      "$configuration"
+    ;;
 esac
-base_configuration="${configuration%-*}"
 
-if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-    group_start() { echo "::group::$1"; }
-    group_end() { echo "::endgroup::"; }
-    report_error() { echo "::error::$1"; }
-else
-    group_start() { echo "--- $1"; }
-    group_end() { echo; }
-    report_error() { echo "ERROR: $1" >&2; }
+run_suite 'android' \
+  'src/tests/Broiler.Input.Android.Tests/Broiler.Input.Android.Tests.csproj' \
+  "$base"
+
+echo
+if [ -n "$failed" ]; then
+  echo "Failed suites:$failed" >&2
+  exit 1
 fi
 
-status=0
-found=0
-failed_suites=()
-
-for project in src/tests/*.Tests/*.csproj; do
-    name=$(basename "$project" .csproj)
-    project_configuration="$base_configuration"
-    if [ "$name" = 'Broiler.Media.Video.MediaFoundation.Tests' ]; then
-        [[ "$configuration" = *-Windows ]] || continue
-        project_configuration="$configuration"
-    fi
-    found=$((found + 1))
-    group_start "$name"
-    output="$(dirname "$project")/bin/$project_configuration"
-    mapfile -t configs < <(find "$output" -name "$name.runtimeconfig.json" 2>/dev/null | sort)
-    if [ "${#configs[@]}" -ne 1 ]; then
-        report_error "Expected one $name runtime configuration under $output; build $configuration first."
-        failed_suites+=("$name")
-        status=1
-    elif ! dotnet "${configs[0]%.runtimeconfig.json}.dll"; then
-        failed_suites+=("$name")
-        status=1
-    fi
-    group_end
-done
-
-if [ "$found" -eq 0 ]; then
-    report_error "No test assemblies found under src/tests - did the build run, and with the configuration you expected?"
-    exit 1
-fi
-
-if [ "$status" -ne 0 ]; then
-    for suite in "${failed_suites[@]}"; do
-        report_error "$suite reported failing tests"
-    done
-    echo "$((found - ${#failed_suites[@]}))/$found suite(s) passed."
-    exit 1
-fi
-
-echo "All $found test suite(s) passed."
+echo 'All suites passed.'

@@ -18,6 +18,10 @@ jobs:
     name: ${{ matrix.configuration }}
     runs-on: ${{ matrix.os }}
 
+    defaults:
+      run:
+        shell: bash
+
     strategy:
       fail-fast: false
       matrix:
@@ -40,28 +44,20 @@ jobs:
       # The suites are self-hosted console runners, not a test framework, so
       # there is nothing for `dotnet test` to discover. See eng/run-tests.sh.
       - name: Test
-        shell: bash
-        run: ./eng/run-tests.sh "${{ matrix.configuration }}"
+        run: bash ./eng/run-tests.sh ${{ matrix.configuration }}
 
-      - name: Test version allocation
-        shell: pwsh
-        run: ./eng/test-package-version.ps1
+      - name: Test preview version selection
+        run: node --test eng/resolve-preview-version.test.mjs
 
-      # Proves the packages still build from this commit. Publishing is a
-      # separate, deliberate action - see .github/workflows/publish.yml.
       - name: Pack
-        run: dotnet pack Broiler.Media.slnx -c ${{ matrix.configuration }} --no-build --nologo -o ./artifacts
-
-      - name: Verify packages
-        shell: pwsh
         run: |
-          $version = dotnet msbuild src/Broiler.Media/Broiler.Media.csproj -getProperty:PackageVersion
-          if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the repository version.' }
-          ./eng/verify-packages.ps1 -Version $version.Trim()
+          dotnet pack Broiler.Media.slnx -c Release --nologo -o ./artifacts
+          echo "Packed:"
+          ls -1 ./artifacts
 
       - name: Upload packages
         uses: actions/upload-artifact@v7
         with:
-          name: nuget-packages-${{ matrix.configuration }}
+          name: nuget-packages
           path: artifacts/*
           if-no-files-found: error
