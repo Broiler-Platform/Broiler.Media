@@ -37,7 +37,7 @@ jobs:
     env:
       TARGET: ${{ github.event_name == 'push' && 'nuget' || inputs.target }}
       DRY_RUN: ${{ github.event_name == 'push' && 'false' || inputs.dry-run }}
-      CONFIGURATION: Release-Windows
+      CONFIGURATION: Release
 
     steps:
       - name: Check out
