@@ -36,7 +36,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
         }
     }
 
-    public static MediaFoundationMediaEngine Create(IHwndVideoOutput? target, VideoSessionOptions options)
+    public static MediaFoundationMediaEngine Create(nint? targetHwnd, VideoSessionOptions options)
     {
         int result = MediaFoundationNative.MFCreateAttributes(out IntPtr attributesPointer, 4);
         MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine attribute creation failed.");
@@ -45,6 +45,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
         MediaFoundationNative.ReleaseIUnknown(attributesPointer);
         var attributes = (IMFAttributes)attributesObject;
         object? factoryObject = null;
+        IMFMediaEngine? engine = null;
         IntPtr factoryPointer = IntPtr.Zero;
         var notify = new MediaEngineNotify();
 
@@ -62,14 +63,14 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
 
             Guid browserMode = MediaFoundationNative.MF_MEDIA_ENGINE_BROWSER_COMPATIBILITY_MODE;
             Guid edgeMode = MediaFoundationNative.MF_MEDIA_ENGINE_BROWSER_COMPATIBILITY_MODE_IE_EDGE;
-            attributes.SetGUID(ref browserMode, ref edgeMode);
+            result = attributes.SetGUID(ref browserMode, ref edgeMode);
+            MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation browser compatibility configuration failed.");
 
-            if (target is not null)
+            if (targetHwnd is not null)
             {
-                target.ThrowIfUsableTargetRequired();
                 Guid hwnd = MediaFoundationNative.MF_MEDIA_ENGINE_PLAYBACK_HWND;
 
-                result = attributes.SetUINT64(ref hwnd, target.Hwnd);
+                result = attributes.SetUINT64(ref hwnd, targetHwnd.Value);
                 MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine HWND configuration failed.");
             }
 
@@ -92,7 +93,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             if (options.Muted)
                 createFlags |= MediaFoundationNative.MF_MEDIA_ENGINE_FORCEMUTE;
 
-            result = factory.CreateInstance(createFlags, attributes, out IMFMediaEngine engine);
+            result = factory.CreateInstance(createFlags, attributes, out engine);
             MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine creation failed.");
 
             result = engine.SetMuted(options.Muted ? 1 : 0);
@@ -110,8 +111,17 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             if (factoryPointer != IntPtr.Zero)
                 MediaFoundationNative.ReleaseIUnknown(factoryPointer);
 
-            MediaFoundationNative.ReleaseComObject(factoryObject);
-            MediaFoundationNative.ReleaseComObject(attributesObject);
+            try
+            {
+                // Creation succeeded but configuration may have failed before ownership transferred.
+                engine?.Shutdown();
+            }
+            finally
+            {
+                MediaFoundationNative.ReleaseComObject(engine);
+                MediaFoundationNative.ReleaseComObject(factoryObject);
+                MediaFoundationNative.ReleaseComObject(attributesObject);
+            }
 
             throw;
         }
@@ -177,16 +187,20 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
         if (_disposed)
             return;
 
+        _disposed = true;
         _notify.EventReceived -= OnNotifyEventReceived;
         _notify.Disconnect();
-        Shutdown();
-
-        MediaFoundationNative.ReleaseComObject(_attributesObject);
-        MediaFoundationNative.ReleaseComObject(_factoryObject);
-
-        _attributesObject = null;
-        _factoryObject = null;
-        _disposed = true;
+        try
+        {
+            Shutdown();
+        }
+        finally
+        {
+            MediaFoundationNative.ReleaseComObject(_attributesObject);
+            MediaFoundationNative.ReleaseComObject(_factoryObject);
+            _attributesObject = null;
+            _factoryObject = null;
+        }
     }
 
     private IMFMediaEngine GetEngine() => _engine ?? throw new ObjectDisposedException(nameof(MediaFoundationMediaEngine));
@@ -197,7 +211,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
     [ClassInterface(ClassInterfaceType.None)]
     private sealed class MediaEngineNotify : IMFMediaEngineNotify
     {
-        private bool _connected = true;
+        private volatile bool _connected = true;
 
         public event EventHandler<MediaFoundationMediaEngineEvent>? EventReceived;
 

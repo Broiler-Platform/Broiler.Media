@@ -157,10 +157,13 @@ internal static class MediaFoundationFaults
     };
 }
 
+/// <summary>Native Media Engine callback contract. Public visibility is required for COM QueryInterface.</summary>
 [ComVisible(true)]
 [Guid("FEE7C112-E776-42B5-9BBF-0048524E2BD5")]
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IMFMediaEngineNotify
+// COM cannot QueryInterface an internal interface, even with ComVisible(true).
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+public interface IMFMediaEngineNotify
 {
     [PreserveSig]
     int EventNotify(uint @event, UIntPtr param1, uint param2);

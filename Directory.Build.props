@@ -49,6 +49,8 @@
        this checkout's git origin. -->
   <PropertyGroup Condition="'$(BroilerIsOwnProject)' == 'true'">
     <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Media</PackageProjectUrl>
+    <!-- Repository preview floor; publishing advances it using durable release tags. -->
+    <VersionSuffix>preview.7</VersionSuffix>
 
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

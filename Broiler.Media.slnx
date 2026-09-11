@@ -51,19 +51,18 @@
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
+    <!-- These net10.0 libraries build and pack on every host; playback requires Windows. -->
     <Project Path="src/Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj">
-      <Build Project="false" Solution="Debug|*" />
-      <Build Project="false" Solution="Release|*" />
-      <Build Project="false" Solution="Debug-Linux|*" />
-      <Build Project="false" Solution="Release-Linux|*" />
+      <BuildType Project="Debug" Solution="Debug-Linux|*" />
+      <BuildType Project="Release" Solution="Release-Linux|*" />
+      <BuildType Project="Debug" Solution="Debug-Windows|*" />
+      <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
     <Project Path="src/Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj">
-      <Build Project="false" Solution="Debug|*" />
-      <Build Project="false" Solution="Release|*" />
-      <Build Project="false" Solution="Debug-Linux|*" />
-      <Build Project="false" Solution="Release-Linux|*" />
+      <BuildType Project="Debug" Solution="Debug-Linux|*" />
+      <BuildType Project="Release" Solution="Release-Linux|*" />
+      <BuildType Project="Debug" Solution="Debug-Windows|*" />
+      <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
     <Project Path="src/Broiler.Media.Image/Broiler.Media.Image.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
@@ -77,7 +76,7 @@
       <BuildType Project="Debug" Solution="Debug-Windows|*" />
       <BuildType Project="Release" Solution="Release-Windows|*" />
     </Project>
-    <!-- Dependencies-only meta-package over the cross-platform stack. -->
+    <!-- Dependencies-only meta-package over all runtime libraries. -->
     <Project Path="src/Broiler.Media.All/Broiler.Media.All.csproj">
       <BuildType Project="Debug" Solution="Debug-Linux|*" />
       <BuildType Project="Release" Solution="Release-Linux|*" />

@@ -22,24 +22,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The cross-platform stack. The solution excludes
-          # Broiler.Media.Video.MediaFoundation and its test runner from this
-          # configuration, so the Broiler.Graphics submodule is not needed.
+          # Both hosts pack all libraries; Windows also runs the native-backend suite.
           - os: ubuntu-latest
             configuration: Release-Linux
-            submodules: 'false'
-          # Adds Broiler.Media.Video.MediaFoundation, which borrows the HWND
-          # presentation target from Broiler.Graphics.Windows and therefore
-          # needs the submodule checked out.
           - os: windows-latest
             configuration: Release-Windows
-            submodules: 'recursive'
 
     steps:
       - name: Check out
         uses: actions/checkout@v7
-        with:
-          submodules: ${{ matrix.submodules }}
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
@@ -53,18 +44,27 @@ jobs:
       # there is nothing for `dotnet test` to discover. See eng/run-tests.sh.
       - name: Test
         shell: bash
-        run: ./eng/run-tests.sh
+        run: ./eng/run-tests.sh "${{ matrix.configuration }}"
+
+      - name: Test version allocation
+        shell: pwsh
+        run: ./eng/test-package-version.ps1
 
       # Proves the packages still build from this commit. Publishing is a
       # separate, deliberate action - see .github/workflows/publish.yml.
       - name: Pack
-        if: matrix.configuration == 'Release-Linux'
-        run: dotnet pack Broiler.Media.slnx -c ${{ matrix.configuration }} --nologo -o ./artifacts
+        run: dotnet pack Broiler.Media.slnx -c ${{ matrix.configuration }} --no-build --nologo -o ./artifacts
+
+      - name: Verify packages
+        shell: pwsh
+        run: |
+          $version = dotnet msbuild src/Broiler.Media/Broiler.Media.csproj -getProperty:PackageVersion
+          if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the repository version.' }
+          ./eng/verify-packages.ps1 -Version $version.Trim()
 
       - name: Upload packages
-        if: matrix.configuration == 'Release-Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: nuget-packages
+          name: nuget-packages-${{ matrix.configuration }}
           path: artifacts/*
           if-no-files-found: error

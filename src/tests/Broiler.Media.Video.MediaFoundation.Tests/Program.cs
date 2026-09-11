@@ -11,7 +11,7 @@ using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation.Tests;
 
-internal static class Program
+internal static partial class Program
 {
     private static async Task<int> Main()
     {
@@ -25,12 +25,14 @@ internal static class Program
             ("Session forwards target resize and visibility changes", TargetChangesReachSession),
             ("Target destruction fails the session and shuts down the engine", TargetDestructionFailsSession),
             ("Session disposal disconnects engine callbacks", DisposeDisconnectsCallbacks),
+            ("Session releases platform scope even when engine disposal fails", DisposeFailureStillReleasesPlatform),
             ("Codec validates source policy before native startup", SourcePolicyValidation),
             ("Codec honors cancellation before native startup", CancellationBeforeNativeStartup),
             ("Video abstractions stay MediaFoundation and HWND free", AbstractionsStayBackendFree),
             ("MediaFoundation runtime names no Broiler.Graphics type at all", RuntimeDependencyBoundary),
         };
 
+        RegisterThreadingTests(tests);
         int passed = 0;
         var failures = new List<string>();
         Console.WriteLine($"Running {tests.Count} Media Foundation video test(s)...\n");
@@ -196,6 +198,7 @@ internal static class Program
 
         target.Resize(1024, 576);
         target.SetVisible(false);
+        await session.FlushEventsAsync().ConfigureAwait(false);
 
         Assert.Equal(2, engine.TargetChangeCount);
         Assert.Equal(1024, engine.LastTargetWidth);
@@ -214,12 +217,18 @@ internal static class Program
         await session.LoadAsync("file:///C:/video.mp4", CancellationToken.None).ConfigureAwait(false);
 
         target.NotifyDestroyed();
+        await session.FlushEventsAsync().ConfigureAwait(false);
 
         Assert.Equal(VideoSessionState.Failed, session.State);
         Assert.True(target.Failure is not null);
         Assert.Equal(MediaErrorCode.OutputFailed, target.Failure!.Code);
         Assert.Equal(1, engine.ShutdownCount);
         Assert.True(events.Contains(VideoSessionEventKind.Failed));
+        engine.Raise(MediaFoundationMediaEngineEventKind.Playing);
+        engine.Raise(MediaFoundationMediaEngineEventKind.Ended);
+        await session.FlushEventsAsync().ConfigureAwait(false);
+        Assert.Equal(VideoSessionState.Failed, session.State);
+        Assert.False(target.Completed, "Late callbacks must not revive a failed session.");
         await Assert.ThrowsAsync<MediaException>(async () => await session.PlayAsync().ConfigureAwait(false)).ConfigureAwait(false);
     }
 
@@ -236,6 +245,34 @@ internal static class Program
         Assert.Equal(VideoSessionState.Disposed, session.State);
         Assert.False(target.Completed, "Disposed sessions should ignore late engine callbacks.");
         Assert.Equal(1, engine.DisposeCount);
+    }
+
+    private static async ValueTask DisposeFailureStillReleasesPlatform()
+    {
+        var engine = new FakeMediaEngine { ThrowOnDispose = true };
+        var platform = new RecordingPlatformScope();
+        FakeHwndVideoTarget target = CreateTarget();
+        var session = new MediaFoundationVideoSession(new MediaFoundationEngineThread(() => platform, () => engine), target);
+        await session.LoadAsync("file:///C:/video.mp4", CancellationToken.None).ConfigureAwait(false);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await session.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+        Assert.Equal(1, platform.DisposeCount);
+        Assert.Equal(VideoSessionState.Disposed, session.State);
+        target.Resize(800, 600);
+        Assert.Equal(0, engine.TargetChangeCount);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await session.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+        Assert.Equal(1, engine.DisposeCount);
+        Assert.Equal(1, platform.DisposeCount);
+    }
+
+    private sealed class RecordingPlatformScope : IDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public void Dispose() => DisposeCount++;
     }
 
     private static async ValueTask SourcePolicyValidation()
@@ -348,25 +385,35 @@ internal static class Program
 
         public int DisposeCount { get; private set; }
 
-        public void SetSource(string sourceUri) => Calls.Add("SetSource:" + sourceUri);
+        public bool ThrowOnDispose { get; init; }
+        public bool AutoMetadata { get; init; } = true;
+        public TaskCompletionSource Loaded { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<int> ThreadIds { get; } = [];
+        private void RecordThread() => ThreadIds.Add(Environment.CurrentManagedThreadId);
+
+        public void SetSource(string sourceUri) { RecordThread(); Calls.Add("SetSource:" + sourceUri); }
 
         public void Load()
         {
+            RecordThread();
             Calls.Add("Load");
-            Raise(MediaFoundationMediaEngineEventKind.LoadedMetadata);
+            Loaded.TrySetResult();
+            if (AutoMetadata)
+                Raise(MediaFoundationMediaEngineEventKind.LoadedMetadata);
         }
 
-        public void Play() => Calls.Add("Play");
+        public void Play() { RecordThread(); Calls.Add("Play"); }
 
-        public void Pause() => Calls.Add("Pause");
+        public void Pause() { RecordThread(); Calls.Add("Pause"); }
 
         public void Seek(TimeSpan position)
         {
+            RecordThread();
             Position = position;
             Calls.Add("Seek:" + position.TotalSeconds.ToString("0.000", CultureInfo.InvariantCulture));
         }
 
-        public VideoStreamInfo GetStreamInfo() => _info;
+        public VideoStreamInfo GetStreamInfo() { RecordThread(); return _info; }
 
         public void OnTargetChanged(IHwndVideoOutput target)
         {
@@ -376,12 +423,15 @@ internal static class Program
             LastTargetVisible = target.IsVisible;
         }
 
-        public void Shutdown() => ShutdownCount++;
+        public void Shutdown() { RecordThread(); ShutdownCount++; }
 
         public void Dispose()
         {
+            RecordThread();
             DisposeCount++;
             EventReceived = null;
+            if (ThrowOnDispose)
+                throw new InvalidOperationException("Simulated engine disposal failure.");
         }
 
         public void Raise(MediaFoundationMediaEngineEventKind kind) =>
@@ -411,6 +461,8 @@ internal static class Program
         public bool IsDestroyed { get; private set; }
 
         public bool Completed { get; private set; }
+        public Func<CancellationToken, ValueTask>? OnComplete { get; init; }
+        public Func<MediaError, CancellationToken, ValueTask>? OnFail { get; init; }
 
         public MediaError? Failure { get; private set; }
 
@@ -443,14 +495,14 @@ internal static class Program
         {
             cancellationToken.ThrowIfCancellationRequested();
             Completed = true;
-            return ValueTask.CompletedTask;
+            return OnComplete?.Invoke(cancellationToken) ?? ValueTask.CompletedTask;
         }
 
         public ValueTask FailAsync(MediaError error, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Failure = error ?? throw new ArgumentNullException(nameof(error));
-            return ValueTask.CompletedTask;
+            return OnFail?.Invoke(error, cancellationToken) ?? ValueTask.CompletedTask;
         }
 
         public void ThrowIfUsableTargetRequired()

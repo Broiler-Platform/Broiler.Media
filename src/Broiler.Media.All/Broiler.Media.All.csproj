@@ -5,7 +5,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <PackageId>Broiler.Media.All</PackageId>
-    <Description>Meta-package that pulls in the full cross-platform Broiler.Media stack (core, audio, image, and video plus their managed implementations). Platform-native backends (e.g. MediaFoundation) are separate packages.</Description>
+    <Description>Meta-package that pulls in the full Broiler.Media stack: core, audio, image, video, managed codecs, and the Windows Media Foundation backend. Media Foundation playback requires Windows.</Description>
     <PackageTags>broiler;media;audio;image;video;meta</PackageTags>
 
     <!-- Meta-package: ship dependencies only, no assembly. -->

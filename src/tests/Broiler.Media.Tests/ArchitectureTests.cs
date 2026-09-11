@@ -54,8 +54,7 @@ internal static class ArchitectureTests
                 ],
             ["Broiler.Media.Image/Broiler.Media.Image.csproj"] = ["../Broiler.Media/Broiler.Media.csproj"],
             ["Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj"] = ["../Broiler.Media.Image/Broiler.Media.Image.csproj"],
-            // The meta-package carries the cross-platform stack only; platform-native
-            // backends (MediaFoundation) stay separate packages.
+            // The meta-package includes every runtime library; native playback still requires Windows.
             ["Broiler.Media.All/Broiler.Media.All.csproj"] =
                 [
                     "../Broiler.Media/Broiler.Media.csproj",

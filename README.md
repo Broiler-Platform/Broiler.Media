@@ -9,7 +9,7 @@ abstraction assemblies with one concrete implementation assembly per media kind.
 Rendering, windowing, networking, and HTML media-element behaviour deliberately live
 outside this component.
 
-> **Preview release.** `0.1.0-preview.1` is the first published preview. Public names,
+> **Preview release.** The next release starts at `0.1.0-preview.7`. Public names,
 > XML documentation, and the `MediaLimits`/pixel-format contracts are not frozen yet
 > and may change before `1.0`. See the
 > [roadmap](https://github.com/Broiler-Platform/Broiler.Media/blob/main/docs/roadmap.md)
@@ -23,23 +23,28 @@ Preview packages need an explicit prerelease opt-in:
 dotnet add package Broiler.Media.All --prerelease
 ```
 
-`Broiler.Media.All` is a dependencies-only meta-package covering the whole
-cross-platform stack. To take only what you need, reference the individual
+`Broiler.Media.All` is a dependencies-only meta-package covering all eight runtime
+assemblies, including the Windows video contracts and Media Foundation backend. To take only what you need, reference the individual
 packages instead — for example, image decoding alone:
 
 ```bash
 dotnet add package Broiler.Media.Image.Managed --prerelease
 ```
 
-The Windows-only video backend is a separate package and is **not** pulled in by
-the meta-package:
+The Windows-only video backend can also be referenced individually:
 
 ```bash
 dotnet add package Broiler.Media.Video.MediaFoundation --prerelease
 ```
 
-All packages target `net10.0`, except `Broiler.Media.Video.MediaFoundation`, which
-targets `net10.0-windows`.
+All packages target `net10.0` and can be built on either host. Media Foundation
+playback requires Windows; its public APIs carry Windows platform annotations.
+
+Each Media Foundation engine owns a dedicated COM thread. Native notifications and
+output lifecycle callbacks are dispatched asynchronously; implementations that touch
+UI state must marshal that work to their UI dispatcher. Disposing a session cancels
+pending output work and releases the native engine without waiting for application
+output callbacks to finish.
 
 ## Assemblies
 
@@ -49,7 +54,8 @@ targets `net10.0-windows`.
 | `Broiler.Media.Audio` | Audio abstraction: `AudioCodec`, `AudioBuffer`, `AudioStreamInfo`, `IAudioOutput`. |
 | `Broiler.Media.Audio.Managed` | Managed audio decoders (RIFF/WAVE PCM). |
 | `Broiler.Media.Video` | Video abstraction: `VideoCodec`, `IVideoSession`, `IVideoOutput`, session state/events. |
-| `Broiler.Media.Video.MediaFoundation` | Windows-only video via `IMFMediaEngine`, presenting to an HWND owned by `Broiler.Graphics.Windows`. |
+| `Broiler.Media.Video.Windows` | Borrowed-HWND presentation contracts, including `IHwndVideoOutput`. |
+| `Broiler.Media.Video.MediaFoundation` | Windows-only video via `IMFMediaEngine`, presenting to a borrowed HWND through `IHwndVideoOutput`. |
 | `Broiler.Media.Image` | Image abstraction: `ImageCodec`, `ImageBuffer`, `ImageFrame`, `ImageSequence`. |
 | `Broiler.Media.Image.Managed` | Managed image codecs (PNG/APNG, JPEG, BMP, GIF, WebP). |
 
@@ -60,18 +66,18 @@ One additional package ships no assembly of its own:
 
 | Package | Role |
 | --- | --- |
-| `Broiler.Media.All` | Dependencies-only meta-package over the six cross-platform assemblies. Platform-native backends stay separate. |
+| `Broiler.Media.All` | Dependencies-only meta-package over all eight runtime assemblies. Media Foundation playback requires Windows. |
 
 ### Dependency direction
 
 ```text
 Broiler.Media.Audio.Managed          -> Broiler.Media.Audio -> Broiler.Media
 Broiler.Media.Video.MediaFoundation  -> Broiler.Media.Video -> Broiler.Media
-Broiler.Media.Video.MediaFoundation  -> Broiler.Graphics.Windows   (borrows the HWND video target only)
+Broiler.Media.Video.MediaFoundation  -> Broiler.Media.Video.Windows -> Broiler.Media.Video
 Broiler.Media.Image.Managed          -> Broiler.Media.Image -> Broiler.Media
 
 Broiler.Graphics                     -> Broiler.Media.Image          (abstraction only)
-Broiler.Graphics.Windows             -> Broiler.Media.Video          (declares the HWND video target)
+Broiler.Graphics.Windows             -> Broiler.Media.Video.Windows  (implements the borrowed HWND contract)
 ```
 
 The abstraction assemblies are platform-neutral, safe-code, trimming- and AOT-friendly,
@@ -134,25 +140,16 @@ src/                     runtime assemblies, one directory per package
 src/tests/               one self-hosted test runner executable per assembly
 eng/                     vendored packaging metadata and package icon
 docs/                    roadmap and architecture decision records
-Broiler.Graphics/        submodule; supplies the HWND video target (Windows only)
 Broiler.Media.slnx       solution over every project in src/ and src/tests/
 ```
 
-`Broiler.Graphics` is a git submodule. Only `Broiler.Media.Video.MediaFoundation`
-and its test runner reference it, so the cross-platform build and all seven
-cross-platform packages work in a checkout without it. Building the `-Windows`
-configurations does require it.
+The repository is standalone and has no Graphics submodule or package dependency.
+The application supplies the borrowed HWND through `IHwndVideoOutput`.
 
 ## Building and testing
 
-Clone with the submodule, or initialise it in an existing checkout:
-
 ```bash
-git clone --recurse-submodules https://github.com/Broiler-Platform/Broiler.Media.git
-```
-
-```bash
-git submodule update --init --recursive
+git clone https://github.com/Broiler-Platform/Broiler.Media.git
 ```
 
 The solution defines six configurations. `Debug`/`Release` are the plain host builds;
@@ -163,15 +160,16 @@ symbol and gate the platform-specific projects.
 dotnet build Broiler.Media.slnx -c Release-Linux
 ```
 
-`Broiler.Media.Video.MediaFoundation` and its test runner build only under
-`Debug-Windows`/`Release-Windows`; every other configuration excludes them.
+All runtime libraries build in every configuration. The Media Foundation test runner
+builds only under `Debug-Windows`/`Release-Windows`. Use `Release-Windows` on Windows
+to include that suite.
 
 Tests are self-hosted console runners rather than a test framework, so there is
 nothing for `dotnet test` to discover. After building, run every suite the
-configuration produced:
+configuration enables (pass the same configuration used for the build):
 
 ```bash
-./eng/run-tests.sh
+./eng/run-tests.sh Release-Linux
 ```
 
 Or run one directly:
@@ -188,32 +186,39 @@ dotnet pack Broiler.Media.slnx -c Release-Linux -o ./artifacts
 
 ## Continuous integration and releases
 
-`.github/workflows/ci.yml` builds and tests both configurations on every push and
-pull request — `Release-Linux` on Ubuntu, `Release-Windows` on Windows with the
-submodule — and attaches the packed packages to each run.
+`.github/workflows/ci.yml` builds and tests `Release-Linux` on Ubuntu and
+`Release-Windows` on Windows. Both jobs pack and verify all nine packages, including
+Windows and MediaFoundation, and upload separate artifacts. Package verification
+checks assemblies, XML docs, symbols, metadata, and dependency versions.
 
-`.github/workflows/publish.yml` publishes. Run it manually to choose a feed
-(GitHub Packages or nuget.org); it defaults to a dry run that packs and attaches
-the packages without pushing. Pushing a `v*` tag publishes to nuget.org, and the
-tag must match the version in `eng/Broiler.Packaging.props`, which stays the
-source of truth for the suite version.
+`.github/workflows/publish.yml` builds and tests on Windows before publishing all
+nine packages. Run it manually to select GitHub Packages or nuget.org. It defaults
+to a dry run that verifies and attaches packages without pushing or reserving a version.
+
+Manual publishes automatically choose `0.1.0-preview.7`, then `preview.8`, and so on.
+`Directory.Build.props` sets the minimum preview; existing `publish/*` reservations
+and `v*` release tags advance the counter numerically. Both feeds share the counter.
+The workflow reserves `publish/<version>` immediately before the feed push, using
+the repository token with `contents: write`. Keep these tags: they are the persistent
+version history. A rerun of the same Actions run and commit reuses its reservation
+to finish a partial push; a new run advances the number. Failed pushes can therefore
+leave a gap. Repository rules must allow the workflow to create `publish/*` tags.
+
+Pushing `v0.1.0-preview.N` (or `v0.1.0` for a stable release) publishes that exact
+version to nuget.org. The numeric prefix must match the repository version, and a
+version reserved by another run cannot be reused. Update the repository prefix
+before starting another release line.
 
 Publishing to nuget.org needs a `NUGET_API_KEY` repository secret. GitHub Packages
-uses the built-in token and needs no setup.
-
-Both workflows publish only the seven cross-platform packages.
-`Broiler.Media.Video.MediaFoundation` carries a package dependency on
-`Broiler.Graphics.Windows`, so it cannot ship until that package is on the same
-feed; `Release-Linux` excludes it, which is exactly the set that is ready.
+uses the built-in token. Version reservations do not trigger another publish run.
 
 ## Packaging
 
-Packages are published per assembly with lockstep suite versioning during preview
-(`0.1.0-preview.1`), Apache-2.0 licensed, with symbol packages (`.snupkg`) and SourceLink.
-Metadata is vendored from `eng/Broiler.Packaging.props` so each component packs standalone;
-component-specific overrides live in `Directory.Build.props` and win over those defaults.
-`Broiler.Media.Video.MediaFoundation` targets `net10.0-windows`; the rest are `net10.0` and
-platform-neutral.
+Packages are published per assembly with lockstep versioning, Apache-2.0 licensing,
+symbol packages (`.snupkg`), and SourceLink. The meta-package contains dependencies
+only and has no symbol package. Shared metadata is vendored from
+`eng/Broiler.Packaging.props`; repository overrides, including the preview floor,
+live in `Directory.Build.props`. All runtime packages target `net10.0`.
 
 ## Design records
 

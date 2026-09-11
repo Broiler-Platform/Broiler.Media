@@ -14,7 +14,18 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
         MediaKind.Video, MediaCodecCapabilities.Decode | MediaCodecCapabilities.Streaming | MediaCodecCapabilities.DirectPresentation,
         [new MediaFormatDescriptor("MPEG-4 video", ["video/mp4"], [".mp4"])]);
 
-    public MediaFoundationVideoCodec() : base(CodecDescriptor) { }
+    private readonly Func<IHwndVideoOutput?, VideoSessionOptions, IMediaFoundationMediaEngine> _createEngine;
+
+    public MediaFoundationVideoCodec() : this((target, options) =>
+    {
+        nint? hwnd = target?.Hwnd;
+        return new MediaFoundationEngineThread(
+            () => new MediaFoundationPlatformScope(),
+            () => MediaFoundationMediaEngine.Create(hwnd, options));
+    }) { }
+
+    internal MediaFoundationVideoCodec(Func<IHwndVideoOutput?, VideoSessionOptions, IMediaFoundationMediaEngine> createEngine)
+        : base(CodecDescriptor) => _createEngine = createEngine;
 
     public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
@@ -35,13 +46,17 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
         cancellationToken.ThrowIfCancellationRequested();
 
         string sourceUri = ResolveSourceUri(input.Hints);
-        using var platform = new MediaFoundationPlatformScope();
-        using IMediaFoundationMediaEngine engine = MediaFoundationMediaEngine.Create(
-            target: null,
+        using IMediaFoundationMediaEngine engine = _createEngine(
+            null,
             new VideoSessionOptions(autoplay: false, muted: true));
 
         var metadataReady = new TaskCompletionSource<VideoStreamInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
-        engine.EventReceived += (_, e) =>
+        var callbacks = new MediaFoundationCallbackQueue(ex =>
+        {
+            metadataReady.TrySetException(ex);
+            return ValueTask.CompletedTask;
+        });
+        EventHandler<MediaFoundationMediaEngineEvent> handler = (_, e) => callbacks.Post(() =>
         {
             if (e.Kind is MediaFoundationMediaEngineEventKind.LoadedMetadata or MediaFoundationMediaEngineEventKind.FormatChange)
             {
@@ -61,12 +76,20 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
                 MediaError error = new(MediaErrorCode.NativeFailure, "Media Foundation failed while loading video metadata.", Id);
                 metadataReady.TrySetException(new MediaException(error));
             }
-        };
-
-        engine.SetSource(sourceUri);
-        engine.Load();
-
-        return await metadataReady.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return ValueTask.CompletedTask;
+        });
+        engine.EventReceived += handler;
+        try
+        {
+            engine.SetSource(sourceUri);
+            engine.Load();
+            return await metadataReady.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            engine.EventReceived -= handler;
+            callbacks.Stop();
+        }
     }
 
     public override async ValueTask<IVideoSession> OpenSessionAsync(MediaInput input, IVideoOutput output,
@@ -85,14 +108,13 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
         
         string sourceUri = ResolveSourceUri(input.Hints);
         VideoSessionOptions effectiveOptions = options ?? new VideoSessionOptions();
-        var platform = new MediaFoundationPlatformScope();
         IMediaFoundationMediaEngine? engine = null;
         MediaFoundationVideoSession? session = null;
 
         try
         {
-            engine = MediaFoundationMediaEngine.Create(target, effectiveOptions);
-            session = new MediaFoundationVideoSession(engine, target, platform);
+            engine = _createEngine(target, effectiveOptions);
+            session = new MediaFoundationVideoSession(engine, target);
             engine = null;
             await session.LoadAsync(sourceUri, cancellationToken).ConfigureAwait(false);
 
@@ -108,8 +130,6 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
             if (session is not null)
                 await session.DisposeAsync().ConfigureAwait(false);
             engine?.Dispose();
-            if (session is null)
-                platform.Dispose();
             throw;
         }
     }
