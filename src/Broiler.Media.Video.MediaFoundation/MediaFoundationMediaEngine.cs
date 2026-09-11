@@ -1,3 +1,5 @@
+using Broiler.Native.Windows.MediaFoundation;
+using Broiler.Native.Windows;
 using Broiler.Media.Video.Windows;
 using System;
 using System.Runtime.InteropServices;
@@ -38,11 +40,11 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
 
     public static MediaFoundationMediaEngine Create(nint? targetHwnd, VideoSessionOptions options)
     {
-        int result = MediaFoundationNative.MFCreateAttributes(out IntPtr attributesPointer, 4);
+        int result = MediaFoundationPlatformNative.MFCreateAttributes(out IntPtr attributesPointer, 4);
         MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine attribute creation failed.");
 
         object attributesObject = Marshal.GetObjectForIUnknown(attributesPointer);
-        MediaFoundationNative.ReleaseIUnknown(attributesPointer);
+        ComNative.ReleaseIUnknown(attributesPointer);
         var attributes = (IMFAttributes)attributesObject;
         object? factoryObject = null;
         IMFMediaEngine? engine = null;
@@ -77,13 +79,13 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             Guid clsid = MediaFoundationNative.CLSID_MFMediaEngineClassFactory;
             Guid iid = MediaFoundationNative.IID_IMFMediaEngineClassFactory;
 
-            result = MediaFoundationNative.CoCreateInstance(ref clsid, IntPtr.Zero,
-                MediaFoundationNative.CLSCTX_INPROC_SERVER, ref iid, out factoryPointer);
+            result = ComNative.CoCreateInstance(ref clsid, IntPtr.Zero,
+                ComNative.CLSCTX_INPROC_SERVER, ref iid, out factoryPointer);
 
             MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine factory creation failed.", "COM");
 
             factoryObject = Marshal.GetObjectForIUnknown(factoryPointer);
-            MediaFoundationNative.ReleaseIUnknown(factoryPointer);
+            ComNative.ReleaseIUnknown(factoryPointer);
 
             factoryPointer = IntPtr.Zero;
 
@@ -109,7 +111,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             notify.Disconnect();
 
             if (factoryPointer != IntPtr.Zero)
-                MediaFoundationNative.ReleaseIUnknown(factoryPointer);
+                ComNative.ReleaseIUnknown(factoryPointer);
 
             try
             {
@@ -118,9 +120,9 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             }
             finally
             {
-                MediaFoundationNative.ReleaseComObject(engine);
-                MediaFoundationNative.ReleaseComObject(factoryObject);
-                MediaFoundationNative.ReleaseComObject(attributesObject);
+                ComNative.ReleaseComObject(engine);
+                ComNative.ReleaseComObject(factoryObject);
+                ComNative.ReleaseComObject(attributesObject);
             }
 
             throw;
@@ -178,7 +180,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
         }
         finally
         {
-            MediaFoundationNative.ReleaseComObject(engine);
+            ComNative.ReleaseComObject(engine);
         }
     }
 
@@ -196,8 +198,8 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
         }
         finally
         {
-            MediaFoundationNative.ReleaseComObject(_attributesObject);
-            MediaFoundationNative.ReleaseComObject(_factoryObject);
+            ComNative.ReleaseComObject(_attributesObject);
+            ComNative.ReleaseComObject(_factoryObject);
             _attributesObject = null;
             _factoryObject = null;
         }
@@ -220,7 +222,7 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             if (_connected)
                 EventReceived?.Invoke(this, new MediaFoundationMediaEngineEvent((MediaFoundationMediaEngineEventKind)@event, param1, param2));
 
-            return MediaFoundationNative.S_OK;
+            return ComNative.S_OK;
         }
 
         public void Disconnect()

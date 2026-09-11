@@ -1,9 +1,10 @@
-using static Broiler.Native.Windows.Wic.WicNative;
 using System;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using Broiler.Native.Windows;
+using Broiler.Native.Windows.Wic;
 
 namespace Broiler.Media.Image.Managed.Webp;
 
@@ -26,10 +27,10 @@ internal static class WebpWicDecoder
         {
             return DecodeWindows(webpData);
         }
-        catch (COMException ex) when (ex.HResult is WinCodecErrUnknownImageFormat
-                                                 or WinCodecErrComponentNotFound
-                                                 or WinCodecErrInvalidRegistration
-                                                 or WinCodecErrComponentInitializeFailure)
+        catch (COMException ex) when (ex.HResult is WicNative.WinCodecErrUnknownImageFormat
+                                                 or WicNative.WinCodecErrComponentNotFound
+                                                 or WicNative.WinCodecErrInvalidRegistration
+                                                 or WicNative.WinCodecErrComponentInitializeFailure)
         {
             throw new NotSupportedException(
                 $"Lossy VP8 WebP decoding requires the Windows Imaging Component WebP decoder, which is not available on this machine (HRESULT 0x{ex.HResult:X8}).",
@@ -59,10 +60,11 @@ internal static class WebpWicDecoder
     {
         bool uninitializeCom = InitializeComForCurrentThread();
         IStream? stream = null;
-        IWICImagingFactory? factory = null;
-        IWICBitmapDecoder? decoder = null;
-        IWICBitmapFrameDecode? frame = null;
-        IWICFormatConverter? converter = null;
+        WicNative.IWICImagingFactory? factory = null;
+        WicNative.IWICBitmapDecoder? decoder = null;
+        WicNative.IWICBitmapFrameDecode? frame = null;
+        WicNative.IWICFormatConverter? converter = null;
+
         try
         {
             stream = CreateComStream(webpData);
@@ -73,11 +75,11 @@ internal static class WebpWicDecoder
             ThrowIfFailed(factory.CreateFormatConverter(out converter));
 
             ThrowIfFailed(frame.GetPixelFormat(out Guid sourceFormat));
-            ImageBuffer? image = TryConvertAndCopy(converter, frame, sourceFormat, PixelFormat32bppRgba, swizzleBgraToRgba: false);
+            ImageBuffer? image = TryConvertAndCopy(converter, frame, sourceFormat, WicNative.PixelFormat32bppRgba, swizzleBgraToRgba: false);
             if (image is not null)
                 return image;
 
-            image = TryConvertAndCopy(converter, frame, sourceFormat, PixelFormat32bppBgra, swizzleBgraToRgba: true);
+            image = TryConvertAndCopy(converter, frame, sourceFormat, WicNative.PixelFormat32bppBgra, swizzleBgraToRgba: true);
             if (image is not null)
                 return image;
 
@@ -92,11 +94,11 @@ internal static class WebpWicDecoder
             Release(stream);
 
             if (uninitializeCom)
-                CoUninitialize();
+                ComNative.CoUninitialize();
         }
     }
 
-    private static ImageBuffer? TryConvertAndCopy(IWICFormatConverter converter, IWICBitmapFrameDecode source,
+    private static ImageBuffer? TryConvertAndCopy(WicNative.IWICFormatConverter converter, WicNative.IWICBitmapFrameDecode source,
         Guid sourceFormat, Guid destinationFormat, bool swizzleBgraToRgba)
     {
         Guid requestedFormat = destinationFormat;
@@ -125,7 +127,7 @@ internal static class WebpWicDecoder
         return new ImageBuffer(width, height, rgba);
     }
 
-    private static void CopyPixels(IWICFormatConverter converter, int stride, byte[] pixels)
+    private static void CopyPixels(WicNative.IWICFormatConverter converter, int stride, byte[] pixels)
     {
         IntPtr buffer = Marshal.AllocHGlobal(pixels.Length);
         try
@@ -157,12 +159,12 @@ internal static class WebpWicDecoder
 
     private static bool InitializeComForCurrentThread()
     {
-        int hr = CoInitializeEx(IntPtr.Zero, CoInitMultithreaded);
+        int hr = ComNative.CoInitializeEx(IntPtr.Zero, ComNative.COINIT_MULTITHREADED);
 
         if (hr == 0 || hr == 1)
             return true;
 
-        if (hr == RpcEChangedMode)
+        if (hr == ComNative.RPC_E_CHANGED_MODE)
             return false;
 
         Marshal.ThrowExceptionForHR(hr);
@@ -170,11 +172,11 @@ internal static class WebpWicDecoder
     }
 
     [UnconditionalSuppressMessage("Trimming", "IL2050", Justification = "The WIC COM interfaces used here are private, statically declared, and directly referenced by the lossy WebP decoder.")]
-    private static IWICImagingFactory CreateFactory()
+    private static WicNative.IWICImagingFactory CreateFactory()
     {
-        Guid clsid = ClsidWicImagingFactory;
-        Guid iid = IidWicImagingFactory;
-        ThrowIfFailed(CoCreateInstance(ref clsid, IntPtr.Zero, ClsctxInprocServer, ref iid, out IWICImagingFactory factory));
+        Guid clsid = WicNative.ClsidWicImagingFactory;
+        Guid iid = WicNative.IidWicImagingFactory;
+        ThrowIfFailed(ComNative.CoCreateInstance(ref clsid, IntPtr.Zero, ComNative.CLSCTX_INPROC_SERVER, ref iid, out WicNative.IWICImagingFactory factory));
         return factory;
     }
 
@@ -185,7 +187,7 @@ internal static class WebpWicDecoder
         try
         {
             Marshal.Copy(data.ToArray(), 0, hglobal, data.Length);
-            ThrowIfFailed(CreateStreamOnHGlobal(hglobal, fDeleteOnRelease: true, out IStream stream));
+            ThrowIfFailed(ComNative.CreateStreamOnHGlobal(hglobal, fDeleteOnRelease: true, out IStream stream));
             hglobal = IntPtr.Zero;
             return stream;
         }

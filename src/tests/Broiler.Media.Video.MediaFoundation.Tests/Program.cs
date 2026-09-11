@@ -11,6 +11,7 @@ using Broiler.Media.Video.Windows;
 
 namespace Broiler.Media.Video.MediaFoundation.Tests;
 
+[SupportedOSPlatform("windows")]
 internal static partial class Program
 {
     private static async Task<int> Main()

@@ -18,6 +18,7 @@
     <!-- NU5128: a dependency group with no matching lib folder is expected
          for a dependencies-only meta-package. -->
     <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

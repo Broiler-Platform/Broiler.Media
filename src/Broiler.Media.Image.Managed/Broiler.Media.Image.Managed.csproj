@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Broiler.Media.Image.Managed</RootNamespace>
     <AssemblyName>Broiler.Media.Image.Managed</AssemblyName>
     <Description>Managed, cross-platform image codec implementation for Broiler.Media.Image.</Description>
     <PackageTags>broiler;media;image;managed</PackageTags>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(BroilerNativeRoot)/src/Broiler.Native.Windows/Broiler.Native.Windows.csproj" Condition="Exists('$(BroilerNativeRoot)/src/Broiler.Native.Windows/Broiler.Native.Windows.csproj')" />
-    <PackageReference Include="Broiler.Native.Windows" Version="$(BroilerNativeVersion)" Condition="!Exists('$(BroilerNativeRoot)/src/Broiler.Native.Windows/Broiler.Native.Windows.csproj')" />
+    <PackageReference Include="Broiler.Native.Windows" Version="0.1.0-preview.3" />
   </ItemGroup>
+
 </Project>

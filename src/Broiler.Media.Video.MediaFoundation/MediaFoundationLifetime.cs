@@ -1,6 +1,6 @@
+using Broiler.Native.Windows;
+using Broiler.Native.Windows.MediaFoundation;
 using System;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
@@ -12,15 +12,15 @@ internal sealed class MediaFoundationPlatformScope : IDisposable
 
     public MediaFoundationPlatformScope()
     {
-        int comResult = MediaFoundationNative.CoInitializeEx(IntPtr.Zero, MediaFoundationNative.COINIT_MULTITHREADED);
-        if (comResult == MediaFoundationNative.S_OK || comResult == MediaFoundationNative.S_FALSE)
+        int comResult = ComNative.CoInitializeEx(IntPtr.Zero, ComNative.COINIT_MULTITHREADED);
+        if (comResult == ComNative.S_OK || comResult == ComNative.S_FALSE)
             _shouldUninitializeCom = true;
-        else if (comResult != MediaFoundationNative.RPC_E_CHANGED_MODE)
+        else if (comResult != ComNative.RPC_E_CHANGED_MODE)
             MediaFoundationFaults.ThrowIfFailed(comResult, "COM initialization failed.", "COM");
 
         try
         {
-            int result = MediaFoundationNative.MFStartup(MediaFoundationNative.MF_VERSION, MediaFoundationNative.MFSTARTUP_NOSOCKET);
+            int result = MediaFoundationPlatformNative.MFStartup(MediaFoundationPlatformNative.MF_VERSION, MediaFoundationPlatformNative.MFSTARTUP_NOSOCKET);
             
             MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation startup failed.");
             _mediaFoundationStarted = true;
@@ -28,7 +28,7 @@ internal sealed class MediaFoundationPlatformScope : IDisposable
         catch
         {
             if (_shouldUninitializeCom)
-                MediaFoundationNative.CoUninitialize();
+                ComNative.CoUninitialize();
             throw;
         }
     }
@@ -39,10 +39,10 @@ internal sealed class MediaFoundationPlatformScope : IDisposable
             return;
 
         if (_mediaFoundationStarted)
-            _ = MediaFoundationNative.MFShutdown();
+            _ = MediaFoundationPlatformNative.MFShutdown();
         
         if (_shouldUninitializeCom)
-            MediaFoundationNative.CoUninitialize();
+            ComNative.CoUninitialize();
         
         _disposed = true;
     }
@@ -61,12 +61,12 @@ internal static class MediaFoundationFaults
 
     private static MediaErrorCode Map(int hresult) => hresult switch
     {
-        MediaFoundationNative.E_ACCESSDENIED => MediaErrorCode.NativeFailure,
-        MediaFoundationNative.MF_E_INVALIDMEDIATYPE => MediaErrorCode.UnsupportedFormat,
-        MediaFoundationNative.MF_E_PLATFORM_NOT_INITIALIZED or
-            MediaFoundationNative.MF_E_NOT_INITIALIZED or
-            MediaFoundationNative.MF_E_NOT_AVAILABLE or
-            MediaFoundationNative.MF_E_DISABLED_IN_SAFEMODE => MediaErrorCode.NativeFailure,
+        ComNative.E_ACCESSDENIED => MediaErrorCode.NativeFailure,
+        MediaFoundationPlatformNative.MF_E_INVALIDMEDIATYPE => MediaErrorCode.UnsupportedFormat,
+        MediaFoundationPlatformNative.MF_E_PLATFORM_NOT_INITIALIZED or
+            MediaFoundationPlatformNative.MF_E_NOT_INITIALIZED or
+            MediaFoundationPlatformNative.MF_E_NOT_AVAILABLE or
+            MediaFoundationPlatformNative.MF_E_DISABLED_IN_SAFEMODE => MediaErrorCode.NativeFailure,
         _ => MediaErrorCode.NativeFailure,
     };
 
@@ -83,14 +83,14 @@ internal static class MediaFoundationFaults
 
     private static string? GetNativeErrorName(int hresult) => hresult switch
     {
-        MediaFoundationNative.E_ACCESSDENIED => "E_ACCESSDENIED",
-        MediaFoundationNative.RPC_E_CHANGED_MODE => "RPC_E_CHANGED_MODE",
-        MediaFoundationNative.MF_E_PLATFORM_NOT_INITIALIZED => "MF_E_PLATFORM_NOT_INITIALIZED",
-        MediaFoundationNative.MF_E_INVALIDMEDIATYPE => "MF_E_INVALIDMEDIATYPE",
-        MediaFoundationNative.MF_E_NOT_INITIALIZED => "MF_E_NOT_INITIALIZED",
-        MediaFoundationNative.MF_E_NOT_AVAILABLE => "MF_E_NOT_AVAILABLE",
-        MediaFoundationNative.MF_E_DISABLED_IN_SAFEMODE => "MF_E_DISABLED_IN_SAFEMODE",
-        MediaFoundationNative.MF_E_SHUTDOWN => "MF_E_SHUTDOWN",
+        ComNative.E_ACCESSDENIED => "E_ACCESSDENIED",
+        ComNative.RPC_E_CHANGED_MODE => "RPC_E_CHANGED_MODE",
+        MediaFoundationPlatformNative.MF_E_PLATFORM_NOT_INITIALIZED => "MF_E_PLATFORM_NOT_INITIALIZED",
+        MediaFoundationPlatformNative.MF_E_INVALIDMEDIATYPE => "MF_E_INVALIDMEDIATYPE",
+        MediaFoundationPlatformNative.MF_E_NOT_INITIALIZED => "MF_E_NOT_INITIALIZED",
+        MediaFoundationPlatformNative.MF_E_NOT_AVAILABLE => "MF_E_NOT_AVAILABLE",
+        MediaFoundationPlatformNative.MF_E_DISABLED_IN_SAFEMODE => "MF_E_DISABLED_IN_SAFEMODE",
+        MediaFoundationPlatformNative.MF_E_SHUTDOWN => "MF_E_SHUTDOWN",
         _ => null,
     };
 }

@@ -5,6 +5,7 @@
     <AssemblyName>Broiler.Media.Image</AssemblyName>
     <Description>Image media contracts and pipeline abstractions for Broiler.</Description>
     <PackageTags>broiler;media;image</PackageTags>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

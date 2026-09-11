@@ -5,6 +5,7 @@
     <AssemblyName>Broiler.Media.Audio.Managed</AssemblyName>
     <Description>Managed, cross-platform audio decoding/encoding implementation for Broiler.Media.Audio.</Description>
     <PackageTags>broiler;media;audio;managed</PackageTags>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

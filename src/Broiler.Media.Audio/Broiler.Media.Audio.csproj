@@ -5,6 +5,7 @@
     <AssemblyName>Broiler.Media.Audio</AssemblyName>
     <Description>Audio media contracts and pipeline abstractions for Broiler.</Description>
     <PackageTags>broiler;media;audio</PackageTags>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
