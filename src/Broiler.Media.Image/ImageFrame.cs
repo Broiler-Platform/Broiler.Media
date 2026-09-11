@@ -16,12 +16,9 @@ public sealed class ImageFrame
 
     private ImageFrame(ImageBuffer pixels, int delayNumerator, int delayDenominator, TimeSpan duration)
     {
-        if (delayNumerator < 0)
-            throw new ArgumentOutOfRangeException(nameof(delayNumerator));
-        if (delayDenominator < 0)
-            throw new ArgumentOutOfRangeException(nameof(delayDenominator));
-        if (duration < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(duration));
+        ArgumentOutOfRangeException.ThrowIfNegative(delayNumerator);
+        ArgumentOutOfRangeException.ThrowIfNegative(delayDenominator);
+        ArgumentOutOfRangeException.ThrowIfLessThan(duration, TimeSpan.Zero);
 
         Pixels = pixels ?? throw new ArgumentNullException(nameof(pixels));
         DelayNumerator = delayNumerator;
@@ -48,8 +45,7 @@ public sealed class ImageFrame
     /// against. Used by <see cref="ImageSequence.FrameIndexAt"/>; the raw
     /// <see cref="Duration"/> is left untouched for callers that re-encode.
     /// </summary>
-    public TimeSpan EffectiveDuration =>
-        Duration < AnimationDurationThreshold ? DefaultAnimationDuration : Duration;
+    public TimeSpan EffectiveDuration => Duration < AnimationDurationThreshold ? DefaultAnimationDuration : Duration;
 
     /// <summary>Delays below this are treated as "unspecified" — Blink's threshold, which is
     /// what the Chromium screenshots the renderer is compared against use.</summary>
@@ -60,10 +56,8 @@ public sealed class ImageFrame
 
     private static TimeSpan DelayFromParts(int numerator, int denominator)
     {
-        if (numerator < 0)
-            throw new ArgumentOutOfRangeException(nameof(numerator));
-        if (denominator < 0)
-            throw new ArgumentOutOfRangeException(nameof(denominator));
+        ArgumentOutOfRangeException.ThrowIfNegative(numerator);
+        ArgumentOutOfRangeException.ThrowIfNegative(denominator);
 
         return TimeSpan.FromSeconds(numerator / (double)(denominator == 0 ? 100 : denominator));
     }

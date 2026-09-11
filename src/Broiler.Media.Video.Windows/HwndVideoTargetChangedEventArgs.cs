@@ -9,16 +9,10 @@ namespace Broiler.Media.Video.Windows;
 /// </summary>
 public sealed class HwndVideoTargetChangedEventArgs : EventArgs
 {
-    public HwndVideoTargetChangedEventArgs(
-        HwndVideoTargetChangeKind kind,
-        int width,
-        int height,
-        bool isVisible)
+    public HwndVideoTargetChangedEventArgs(HwndVideoTargetChangeKind kind, int width, int height, bool isVisible)
     {
-        if (width < 0)
-            throw new ArgumentOutOfRangeException(nameof(width));
-        if (height < 0)
-            throw new ArgumentOutOfRangeException(nameof(height));
+        ArgumentOutOfRangeException.ThrowIfNegative(width);
+        ArgumentOutOfRangeException.ThrowIfNegative(height);
 
         Kind = kind;
         Width = width;

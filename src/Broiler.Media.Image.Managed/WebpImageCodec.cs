@@ -1,3 +1,4 @@
+using Broiler.Media.Image.Managed.Webp;
 using System;
 using System.IO;
 using System.Threading;
@@ -7,28 +8,16 @@ namespace Broiler.Media.Image.Managed;
 
 public sealed class WebpImageCodec : ImageCodec
 {
-    public static MediaCodecDescriptor CodecDescriptor { get; } = new(
-        new MediaCodecId("broiler.image.webp.managed"),
-        "Broiler managed WebP",
-        MediaKind.Image,
-        MediaCodecCapabilities.Decode | MediaCodecCapabilities.Encode | MediaCodecCapabilities.Animation,
-        [
-            new MediaFormatDescriptor(
-                "WebP",
-                ["image/webp"],
-                [".webp"]),
-        ]);
+    public static MediaCodecDescriptor CodecDescriptor { get; } = new(new MediaCodecId("broiler.image.webp.managed"), "Broiler managed WebP",
+        MediaKind.Image, MediaCodecCapabilities.Decode | MediaCodecCapabilities.Encode | MediaCodecCapabilities.Animation,
+        [new MediaFormatDescriptor("WebP", ["image/webp"], [".webp"])]);
 
-    public WebpImageCodec()
-        : base(CodecDescriptor)
-    {
-    }
+    public WebpImageCodec() : base(CodecDescriptor) { }
 
-    public override ValueTask<MediaProbeResult> ProbeAsync(
-        MediaProbeRequest request,
-        CancellationToken cancellationToken = default)
+    public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         MediaProbeResult result = WebpDecoder.IsWebp(request.Prefix.Span)
             ? MediaProbeResult.Match(MediaKind.Image, MediaProbeConfidence.Certain, "WebP", "image/webp", 12)
             : MediaProbeResult.NoMatch(MediaKind.Image);
@@ -40,26 +29,20 @@ public sealed class WebpImageCodec : ImageCodec
 
     public ImageSequence DecodeAnimation(ReadOnlySpan<byte> data) => WebpDecoder.DecodeAnimation(data);
 
-    public byte[] Encode(ImageBuffer buffer) => WebpEncoder.Encode(buffer);
+    public static byte[] Encode(ImageBuffer buffer) => WebpEncoder.Encode(buffer);
 
-    public byte[] EncodeAnimation(ImageSequence sequence) => WebpEncoder.EncodeAnimation(sequence);
+    public static byte[] EncodeAnimation(ImageSequence sequence) => WebpEncoder.EncodeAnimation(sequence);
 
     /// <summary>The CPU half; both public paths reach the image through this.</summary>
-    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options)
-    {
-        return options.PreserveAnimation
-            ? DecodeAnimation(data)
-            : ImageSequence.Static(Decode(data));
-    }
+    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options) =>
+        options.PreserveAnimation ? DecodeAnimation(data) : ImageSequence.Static(Decode(data));
 
-    public override async ValueTask EncodeAsync(
-        ImageSequence sequence,
-        Stream output,
-        ImageEncodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask EncodeAsync(ImageSequence sequence, Stream output,
+        ImageEncodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sequence);
         ArgumentNullException.ThrowIfNull(output);
+
         cancellationToken.ThrowIfCancellationRequested();
 
         ImageEncodeOptions effectiveOptions = options ?? new ImageEncodeOptions(ImageEncodeFormat.WebP);
@@ -71,7 +54,6 @@ public sealed class WebpImageCodec : ImageCodec
     }
 
     /// <summary>Reads what the WebP header declares, decoding nothing.</summary>
-    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
-        WebpDecoder.TryInspect(data, out info);
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) => WebpDecoder.TryInspect(data, out info);
 }
 

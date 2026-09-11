@@ -1,12 +1,7 @@
 namespace Broiler.Media.Video;
 
-public sealed class VideoDecodeOptions
+public sealed class VideoDecodeOptions(MediaLimits? limits = null)
 {
-    public VideoDecodeOptions(MediaLimits? limits = null)
-    {
-        Limits = limits ?? MediaLimits.Default;
-    }
-
-    public MediaLimits Limits { get; }
+    public MediaLimits Limits { get; } = limits ?? MediaLimits.Default;
 }
 

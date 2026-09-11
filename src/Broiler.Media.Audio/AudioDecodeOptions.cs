@@ -6,13 +6,10 @@ public sealed class AudioDecodeOptions
 {
     public const int DefaultMaxFramesPerBuffer = 4096;
 
-    public AudioDecodeOptions(
-        AudioSampleFormat outputSampleFormat = AudioSampleFormat.PcmS16Interleaved,
-        int maxFramesPerBuffer = DefaultMaxFramesPerBuffer,
-        MediaLimits? limits = null)
+    public AudioDecodeOptions(AudioSampleFormat outputSampleFormat = AudioSampleFormat.PcmS16Interleaved, 
+        int maxFramesPerBuffer = DefaultMaxFramesPerBuffer, MediaLimits? limits = null)
     {
-        if (maxFramesPerBuffer <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxFramesPerBuffer));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFramesPerBuffer);
 
         OutputSampleFormat = outputSampleFormat;
         MaxFramesPerBuffer = maxFramesPerBuffer;

@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Pure-managed baseline JPEG encoder. Writes a 3-component YCbCr image with
@@ -13,8 +13,7 @@ namespace Broiler.Media.Image.Managed;
 /// </summary>
 internal static class JpegEncoder
 {
-    public static byte[] Encode(ImageBuffer buffer, int quality) =>
-        Encode(buffer, quality, restartInterval: 0, optimize: true);
+    public static byte[] Encode(ImageBuffer buffer, int quality) => Encode(buffer, quality, restartInterval: 0, optimize: true);
 
     /// <param name="restartInterval">MCUs between restart markers; 0 disables them.</param>
     public static byte[] Encode(ImageBuffer buffer, int quality, int restartInterval) =>
@@ -84,6 +83,7 @@ internal static class JpegEncoder
 
         ms.WriteByte(0xFF);
         ms.WriteByte(JpegTables.MarkerEoi);
+
         return ms.ToArray();
     }
 
@@ -91,11 +91,8 @@ internal static class JpegEncoder
     /// Walks the MCU grid, processing every block either to gather symbol frequencies
     /// (<paramref name="writer"/> null) or to emit the entropy-coded bitstream.
     /// </summary>
-    private static void RunScan(
-        int mcusX, int mcusY, int restartInterval,
-        int[] yc, int[] cbc, int[] crc, int yBlocksX, int cBlocksX,
-        JpegBitWriter? writer, MemoryStream? ms,
-        JpegHuffmanTable? dcL, JpegHuffmanTable? acL, JpegHuffmanTable? dcC, JpegHuffmanTable? acC,
+    private static void RunScan(int mcusX, int mcusY, int restartInterval, int[] yc, int[] cbc, int[] crc, int yBlocksX, int cBlocksX,
+        JpegBitWriter? writer, MemoryStream? ms, JpegHuffmanTable? dcL, JpegHuffmanTable? acL, JpegHuffmanTable? dcC, JpegHuffmanTable? acC,
         int[]? fDcL, int[]? fAcL, int[]? fDcC, int[]? fAcC)
     {
         int prevY = 0, prevCb = 0, prevCr = 0, mcuIndex = 0, restartCount = 0;
@@ -130,10 +127,8 @@ internal static class JpegEncoder
             }
     }
 
-    private static int ProcessBlock(
-        int[] coeff, int offset, int prevDc,
-        JpegBitWriter? writer, JpegHuffmanTable? dcTable, JpegHuffmanTable? acTable,
-        int[]? dcFreq, int[]? acFreq)
+    private static int ProcessBlock(int[] coeff, int offset, int prevDc, JpegBitWriter? writer, 
+        JpegHuffmanTable? dcTable, JpegHuffmanTable? acTable, int[]? dcFreq, int[]? acFreq)
     {
         int dc = coeff[offset];
         int diff = dc - prevDc;
@@ -200,8 +195,7 @@ internal static class JpegEncoder
         return result;
     }
 
-    private static void BuildPlanes(
-        ImageBuffer buffer, int width, int height, int yW, int yH, int cW, int cH,
+    private static void BuildPlanes(ImageBuffer buffer, int width, int height, int yW, int yH, int cW, int cH,
         byte[] planeY, byte[] planeCb, byte[] planeCr)
     {
         byte[] rgba = buffer.Rgba;
@@ -241,8 +235,7 @@ internal static class JpegEncoder
             }
     }
 
-    private static void WriteHeaders(
-        Stream s, int width, int height, int[] quantLuma, int[] quantChroma, int restartInterval,
+    private static void WriteHeaders(Stream s, int width, int height, int[] quantLuma, int[] quantChroma, int restartInterval,
         byte[] dcLBits, byte[] dcLVals, byte[] acLBits, byte[] acLVals,
         byte[] dcCBits, byte[] dcCVals, byte[] acCBits, byte[] acCVals)
     {

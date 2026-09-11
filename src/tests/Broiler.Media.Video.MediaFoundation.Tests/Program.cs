@@ -83,9 +83,8 @@ internal static class Program
         Assert.True(signature.IsMatch);
         Assert.Equal("video/mp4", signature.MimeType);
 
-        MediaProbeResult hint = await codec.ProbeAsync(new MediaProbeRequest(
-            ReadOnlyMemory<byte>.Empty,
-            new MediaSourceHints(fileExtension: "mp4"))).ConfigureAwait(false);
+        MediaProbeRequest mediaProbeRequest = new(ReadOnlyMemory<byte>.Empty, new MediaSourceHints(fileExtension: "mp4"));
+        MediaProbeResult hint = await codec.ProbeAsync(mediaProbeRequest).ConfigureAwait(false);
         Assert.True(hint.IsMatch);
 
         MediaProbeResult none = await codec.ProbeAsync(new MediaProbeRequest(new byte[] { 1, 2, 3, 4 })).ConfigureAwait(false);
@@ -106,8 +105,7 @@ internal static class Program
         {
             foreach (MethodInfo method in type.GetMethods())
             {
-                Assert.False(
-                    ownerOnly.Contains(method.Name, StringComparer.Ordinal),
+                Assert.False(ownerOnly.Contains(method.Name, StringComparer.Ordinal),
                     $"{type.Name} exposes owner-only operation '{method.Name}' to borrowers.");
             }
         }
@@ -116,11 +114,10 @@ internal static class Program
         foreach (string member in new[] { "Hwnd", "Width", "Height", "IsVisible", "IsDestroyed" })
             Assert.True(typeof(IHwndVideoOutput).GetProperty(member) is not null, $"Expected {member} on the contract.");
 
-        Assert.True(
-            typeof(IHwndVideoOutput).GetMethod("ThrowIfUsableTargetRequired") is not null,
+        Assert.True(typeof(IHwndVideoOutput).GetMethod("ThrowIfUsableTargetRequired") is not null,
             "Expected the usability check on the contract.");
-        Assert.True(
-            typeof(IVideoOutput).IsAssignableFrom(typeof(IHwndVideoOutput)),
+
+        Assert.True(typeof(IVideoOutput).IsAssignableFrom(typeof(IHwndVideoOutput)),
             "The borrowed HWND target must still be a platform-neutral video output.");
 
         return ValueTask.CompletedTask;
@@ -140,15 +137,13 @@ internal static class Program
         Assert.Equal(450, target.Height);
         Assert.False(target.IsVisible);
         Assert.True(target.IsDestroyed);
-        Assert.SequenceEqual(
-            new[]
-            {
+        Assert.SequenceEqual([
                 HwndVideoTargetChangeKind.Resized,
                 HwndVideoTargetChangeKind.VisibilityChanged,
                 HwndVideoTargetChangeKind.Destroyed,
-            },
-            changes);
-        Assert.Throws<ObjectDisposedException>(() => target.ThrowIfUsableTargetRequired());
+            ], changes);
+
+        Assert.Throws<ObjectDisposedException>(target.ThrowIfUsableTargetRequired);
 
         var error = new MediaError(MediaErrorCode.OutputFailed, "target failed");
         target.FailAsync(error).AsTask().GetAwaiter().GetResult();
@@ -178,20 +173,16 @@ internal static class Program
         Assert.Equal(VideoSessionState.Ended, session.State);
         Assert.True(target.Completed);
 
-        Assert.SequenceEqual(
-            new[]
-            {
+        Assert.SequenceEqual([
                 VideoSessionEventKind.Loading,
                 VideoSessionEventKind.Ready,
                 VideoSessionEventKind.Playing,
                 VideoSessionEventKind.Paused,
                 VideoSessionEventKind.Seeked,
                 VideoSessionEventKind.Ended,
-            },
-            events);
-        Assert.SequenceEqual(
-            new[] { "SetSource:file:///C:/video.mp4", "Load", "Play", "Pause", "Seek:2.000", "Pause", "Seek:0.000" },
-            engine.Calls);
+            ], events);
+
+        Assert.SequenceEqual(["SetSource:file:///C:/video.mp4", "Load", "Play", "Pause", "Seek:2.000", "Pause", "Seek:0.000"], engine.Calls);
     }
 
     private static async ValueTask TargetChangesReachSession()
@@ -254,11 +245,11 @@ internal static class Program
         await Assert.ThrowsAsync<MediaException>(async () =>
             await codec.GetInfoAsync(empty).ConfigureAwait(false)).ConfigureAwait(false);
 
-        using var network = new MediaInput(
-            new MemoryStream(),
-            new MediaSourceHints(sourceUri: "https://example.test/video.mp4"));
+        using var network = new MediaInput(new MemoryStream(), new MediaSourceHints(sourceUri: "https://example.test/video.mp4"));
+
         MediaException ex = await Assert.ThrowsAsync<MediaException>(async () =>
             await codec.GetInfoAsync(network).ConfigureAwait(false)).ConfigureAwait(false);
+
         Assert.Equal(MediaErrorCode.UnsupportedFormat, ex.Error.Code);
     }
 
@@ -318,8 +309,7 @@ internal static class Program
         return ValueTask.CompletedTask;
     }
 
-    private static FakeHwndVideoTarget CreateTarget() =>
-        new((nint)1234, "test hwnd", 640, 360);
+    private static FakeHwndVideoTarget CreateTarget() => new(1234, "test hwnd", 640, 360);
 
     private static string FindMediaRoot()
     {
@@ -404,28 +394,19 @@ internal static class Program
     /// as they do in the real implementation — the test drives them as the owner would, while
     /// the session under test sees only the borrower contract.
     /// </summary>
-    private sealed class FakeHwndVideoTarget : IHwndVideoOutput
+    private sealed class FakeHwndVideoTarget(nint hwnd, string displayName, int width, int height, bool isVisible = true) : IHwndVideoOutput
     {
-        public FakeHwndVideoTarget(nint hwnd, string displayName, int width, int height, bool isVisible = true)
-        {
-            Hwnd = hwnd;
-            DisplayName = displayName;
-            Width = width;
-            Height = height;
-            IsVisible = isVisible;
-        }
-
         public event EventHandler<HwndVideoTargetChangedEventArgs>? TargetChanged;
 
-        public nint Hwnd { get; }
+        public nint Hwnd { get; } = hwnd;
 
-        public string DisplayName { get; }
+        public string DisplayName { get; } = displayName;
 
-        public int Width { get; private set; }
+        public int Width { get; private set; } = width;
 
-        public int Height { get; private set; }
+        public int Height { get; private set; } = height;
 
-        public bool IsVisible { get; private set; }
+        public bool IsVisible { get; private set; } = isVisible;
 
         public bool IsDestroyed { get; private set; }
 

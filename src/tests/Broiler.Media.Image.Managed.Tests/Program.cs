@@ -1,3 +1,6 @@
+using Broiler.Media.Image.Managed.Jpeg;
+using Broiler.Media.Image.Managed.Png;
+using Broiler.Media.Image.Managed.Webp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -85,11 +88,11 @@ internal static class Program
     {
         var catalog = new MediaCodecCatalog(ManagedImageCodecs.CreateCodecs());
         ImageBuffer src = MakeGradient(8, 8);
-        byte[] png = new PngImageCodec().Encode(src);
-        byte[] jpeg = new JpegImageCodec().Encode(src, quality: 90);
-        byte[] bmp = new BmpImageCodec().Encode(src);
-        byte[] gif = new GifImageCodec().Encode(src);
-        byte[] webp = new WebpImageCodec().Encode(src);
+        byte[] png = PngImageCodec.Encode(src);
+        byte[] jpeg = JpegImageCodec.Encode(src, quality: 90);
+        byte[] bmp = BmpImageCodec.Encode(src);
+        byte[] gif = GifImageCodec.Encode(src);
+        byte[] webp = WebpImageCodec.Encode(src);
 
         Assert.True((await SelectAsync(catalog, png).ConfigureAwait(false))?.Codec is PngImageCodec);
         Assert.True((await SelectAsync(catalog, jpeg).ConfigureAwait(false))?.Codec is JpegImageCodec);
@@ -119,36 +122,35 @@ internal static class Program
             0x02, 0x02, 0x44, 0x01, 0x00, 0x3B,
         ];
 
-        var codec = new GifImageCodec();
-        Assert.BytesEqual([0, 0, 0, 255], codec.Decode(blackOneByOne).Rgba, "GIF black fixture pixels");
-        Assert.BytesEqual([0, 0, 0, 0], codec.Decode(transparentOneByOne).Rgba, "GIF transparent fixture pixels");
+        Assert.BytesEqual([0, 0, 0, 255], GifImageCodec.Decode(blackOneByOne).Rgba, "GIF black fixture pixels");
+        Assert.BytesEqual([0, 0, 0, 0], GifImageCodec.Decode(transparentOneByOne).Rgba, "GIF transparent fixture pixels");
 
         ImageBuffer still = new(2, 2,
         [
             255, 0, 0, 255, 0, 255, 0, 255,
             0, 0, 255, 255, 255, 255, 255, 255,
         ]);
-        byte[] encodedStill = codec.Encode(still);
-        ImageBuffer decodedStill = codec.Decode(encodedStill);
+
+        byte[] encodedStill = GifImageCodec.Encode(still);
+        ImageBuffer decodedStill = GifImageCodec.Decode(encodedStill);
         Assert.Equal(2, decodedStill.Width, "GIF still width");
         Assert.Equal(2, decodedStill.Height, "GIF still height");
         Assert.BytesEqual(still.Rgba, decodedStill.Rgba, "GIF still roundtrip pixels");
 
-        ImageSequence animated = new(
-            [
+        ImageSequence animated = new([
                 new ImageFrame(FillImage(2, 2, 255, 0, 0, 255), 3, 100),
                 new ImageFrame(FillImage(2, 2, 0, 0, 255, 255), 7, 100),
-            ],
-            2,
-            2,
-            loopCount: 0);
-        ImageSequence decodedAnimation = codec.DecodeAnimation(codec.EncodeAnimation(animated));
+            ], 2, 2, loopCount: 0);
+
+        ImageSequence decodedAnimation = GifImageCodec.DecodeAnimation(GifImageCodec.EncodeAnimation(animated));
+
         Assert.True(decodedAnimation.IsAnimated, "GIF animation should decode as animated.");
         Assert.Equal(0, decodedAnimation.LoopCount, "GIF animation loop count");
         Assert.Equal(3, decodedAnimation.Frames[0].DelayNumerator, "GIF frame 0 delay");
         Assert.Equal(7, decodedAnimation.Frames[1].DelayNumerator, "GIF frame 1 delay");
         Assert.BytesEqual(animated.Frames[0].Pixels.Rgba, decodedAnimation.Frames[0].Pixels.Rgba, "GIF frame 0 pixels");
         Assert.BytesEqual(animated.Frames[1].Pixels.Rgba, decodedAnimation.Frames[1].Pixels.Rgba, "GIF frame 1 pixels");
+
         return ValueTask.CompletedTask;
     }
 
@@ -156,7 +158,7 @@ internal static class Program
     {
         var codec = new WebpImageCodec();
         ImageBuffer still = MakeGradient(8, 8);
-        byte[] encodedStill = codec.Encode(still);
+        byte[] encodedStill = WebpImageCodec.Encode(still);
         Assert.True(WebpDecoder.IsWebp(encodedStill), "Encoded WebP should have a RIFF/WEBP signature.");
         ImageBuffer decodedStill = codec.Decode(encodedStill);
         Assert.Equal(still.Width, decodedStill.Width, "WebP still width");
@@ -167,15 +169,13 @@ internal static class Program
         await codec.EncodeAsync(ImageSequence.Static(still), output, new ImageEncodeOptions(ImageEncodeFormat.WebP)).ConfigureAwait(false);
         Assert.BytesEqual(encodedStill, output.ToArray(), "WebP async encode bytes");
 
-        ImageSequence animated = new(
-            [
+        ImageSequence animated = new([
                 new ImageFrame(FillImage(3, 2, 255, 32, 16, 255), 1, 10),
                 new ImageFrame(FillImage(3, 2, 16, 32, 255, 128), 7, 100),
-            ],
-            3,
-            2,
-            loopCount: 2);
-        ImageSequence decodedAnimation = codec.DecodeAnimation(codec.EncodeAnimation(animated));
+            ], 3, 2, loopCount: 2);
+
+        ImageSequence decodedAnimation = codec.DecodeAnimation(WebpImageCodec.EncodeAnimation(animated));
+
         Assert.True(decodedAnimation.IsAnimated, "WebP animation should decode as animated.");
         Assert.Equal(2, decodedAnimation.LoopCount, "WebP animation loop count");
         Assert.Equal(100, decodedAnimation.Frames[0].DelayNumerator, "WebP frame 0 delay ms");
@@ -223,40 +223,44 @@ internal static class Program
     private static ValueTask PngEncodeRoundTrips()
     {
         ImageBuffer src = MakeGradient(37, 19);
-        var codec = new PngImageCodec();
-        byte[] first = codec.Encode(src);
-        byte[] second = codec.Encode(src);
+        byte[] first = PngImageCodec.Encode(src);
+        byte[] second = PngImageCodec.Encode(src);
 
         Assert.BytesEqual(first, second, "PNG encoder should be deterministic.");
-        ComparePixels(src, codec.Decode(first));
+
+        ComparePixels(src, PngImageCodec.Decode(first));
         CompareStillDecode(first, src);
+
         return ValueTask.CompletedTask;
     }
 
     private static ValueTask BmpEncodeRoundTrips()
     {
         ImageBuffer src = MakeGradient(40, 24);
-        var codec = new BmpImageCodec();
-        byte[] first = codec.Encode(src);
-        byte[] second = codec.Encode(src);
+        byte[] first = BmpImageCodec.Encode(src);
+        byte[] second = BmpImageCodec.Encode(src);
 
         Assert.BytesEqual(first, second, "BMP encoder should be deterministic.");
-        ComparePixels(src, codec.Decode(first));
+
+        ComparePixels(src, BmpImageCodec.Decode(first));
         CompareStillDecode(first, src);
+
         return ValueTask.CompletedTask;
     }
 
     private static ValueTask JpegEncodeDecodes()
     {
         ImageBuffer src = MakeGradient(64, 48);
-        var codec = new JpegImageCodec();
-        byte[] first = codec.Encode(src, quality: 90);
-        byte[] second = codec.Encode(src, quality: 90);
+        byte[] first = JpegImageCodec.Encode(src, quality: 90);
+        byte[] second = JpegImageCodec.Encode(src, quality: 90);
 
         Assert.BytesEqual(first, second, "JPEG encoder should be deterministic.");
-        ImageBuffer decoded = codec.Decode(first);
+
+        ImageBuffer decoded = JpegImageCodec.Decode(first);
+
         Assert.Equal(src.Width, decoded.Width, "JPEG width");
         Assert.Equal(src.Height, decoded.Height, "JPEG height");
+
         CompareStillDecode(first);
         return ValueTask.CompletedTask;
     }
@@ -285,7 +289,6 @@ internal static class Program
         }
 
         CompareStillDecode(fixtures[^1], adam7);
-
         return ValueTask.CompletedTask;
     }
 
@@ -319,7 +322,7 @@ internal static class Program
 
         foreach (IReadOnlyList<Spec> frames in cases)
         {
-            ImageSequence sequence = new PngImageCodec().DecodeAnimation(PngFormatBuilder.BuildApng(4, 4, numPlays: 5, frames));
+            ImageSequence sequence = PngImageCodec.DecodeAnimation(PngFormatBuilder.BuildApng(4, 4, numPlays: 5, frames));
             Assert.Equal(4, sequence.Width, "APNG width");
             Assert.Equal(4, sequence.Height, "APNG height");
             Assert.Equal(5, sequence.LoopCount, "APNG loop count");
@@ -332,12 +335,11 @@ internal static class Program
     private static ValueTask ApngEncodeRoundTrips()
     {
         ImageSequence mediaSequence = MakeSequence(6, 5, loop: 3, (1, 10), (2, 10), (5, 100));
-        var codec = new PngImageCodec();
-        byte[] first = codec.EncodeAnimation(mediaSequence);
-        byte[] second = codec.EncodeAnimation(mediaSequence);
+        byte[] first = PngImageCodec.EncodeAnimation(mediaSequence);
+        byte[] second = PngImageCodec.EncodeAnimation(mediaSequence);
 
         Assert.BytesEqual(first, second, "APNG encoder should be deterministic.");
-        CompareSequences(mediaSequence, codec.DecodeAnimation(first));
+        CompareSequences(mediaSequence, PngImageCodec.DecodeAnimation(first));
         return ValueTask.CompletedTask;
     }
 
@@ -353,21 +355,20 @@ internal static class Program
 
     private static ValueTask MalformedPngRejected()
     {
-        byte[] png = new PngImageCodec().Encode(MakeGradient(8, 8));
-        png[png.Length - 6] ^= 0xFF;
+        byte[] png = PngImageCodec.Encode(MakeGradient(8, 8));
+        png[^6] ^= 0xFF;
 
-        Assert.Throws<FormatException>(() => new PngImageCodec().Decode(png));
+        Assert.Throws<FormatException>(() => PngImageCodec.Decode(png));
         return ValueTask.CompletedTask;
     }
 
     private static async ValueTask EncodedInputLimitEnforced()
     {
-        byte[] png = new PngImageCodec().Encode(MakeGradient(8, 8));
+        byte[] png = PngImageCodec.Encode(MakeGradient(8, 8));
         using var input = new MediaInput(new MemoryStream(png), leaveOpen: false);
         var options = new ImageDecodeOptions(new MediaLimits(maxEncodedBytes: png.Length - 1));
 
-        await Assert.ThrowsAsync<MediaException>(
-            () => new PngImageCodec().DecodeAsync(input, options).AsTask()).ConfigureAwait(false);
+        await Assert.ThrowsAsync<MediaException>(() => new PngImageCodec().DecodeAsync(input, options).AsTask()).ConfigureAwait(false);
     }
 
     private static async ValueTask StillCodecsRejectAnimatedEncode()
@@ -376,6 +377,7 @@ internal static class Program
 
         await Assert.ThrowsAsync<NotSupportedException>(
             () => new JpegImageCodec().EncodeAsync(animated, Stream.Null, new ImageEncodeOptions(ImageEncodeFormat.Jpeg)).AsTask()).ConfigureAwait(false);
+
         await Assert.ThrowsAsync<NotSupportedException>(
             () => new BmpImageCodec().EncodeAsync(animated, Stream.Null, new ImageEncodeOptions(ImageEncodeFormat.Bmp)).AsTask()).ConfigureAwait(false);
     }
@@ -384,9 +386,11 @@ internal static class Program
     {
         string root = FindMediaRoot();
         string runtimeRoot = Path.Combine(root, "Broiler.Media.Image.Managed");
+
         foreach (string file in Directory.EnumerateFiles(runtimeRoot, "*.cs", SearchOption.AllDirectories))
         {
             string text = File.ReadAllText(file);
+
             Assert.DoesNotContain("Broiler.Graphics", text, file);
             Assert.DoesNotContain("Gfx.", text, file);
         }
@@ -430,8 +434,10 @@ internal static class Program
         {
             ImageFrame expectedFrame = expected.Frames[i];
             ImageFrame actualFrame = actual.Frames[i];
+
             Assert.Equal(expectedFrame.DelayNumerator, actualFrame.DelayNumerator, $"frame {i} delay numerator");
             Assert.Equal(expectedFrame.DelayDenominator, actualFrame.DelayDenominator, $"frame {i} delay denominator");
+
             ComparePixels(expectedFrame.Pixels, actualFrame.Pixels);
         }
     }
@@ -453,9 +459,9 @@ internal static class Program
         ImageBuffer source = MakeGradient(512, 512);
         (string Name, byte[] Bytes)[] fixtures =
         [
-            ("png", new PngImageCodec().Encode(source)),
+            ("png", PngImageCodec.Encode(source)),
             ("png interlaced", InterlacedGradient(512, 512)),
-            ("jpeg", new JpegImageCodec().Encode(source, quality: 90)),
+            ("jpeg", JpegImageCodec.Encode(source, quality: 90)),
             ("jpeg progressive", Convert.FromBase64String(ProgressiveGradientBase64)),
         ];
 
@@ -471,6 +477,7 @@ internal static class Program
                 {
                     ImageDecodeParallelism.MaxDegreeOfParallelism = threads;
                     ImageBuffer parallel = Decode(bytes);
+
                     Assert.Equal(sequential.Width, parallel.Width, $"{name} width at {threads} threads");
                     Assert.Equal(sequential.Height, parallel.Height, $"{name} height at {threads} threads");
                     Assert.BytesEqual(sequential.Rgba, parallel.Rgba, $"{name} pixels at {threads} threads");
@@ -496,9 +503,9 @@ internal static class Program
         ImageBuffer source = MakeGradient(192, 192);
         byte[][] fixtures =
         [
-            new PngImageCodec().Encode(source),
+            PngImageCodec.Encode(source),
             InterlacedGradient(192, 192),
-            new JpegImageCodec().Encode(source, quality: 85),
+            JpegImageCodec.Encode(source, quality: 85),
             Convert.FromBase64String(ProgressiveGradientBase64),
         ];
 
@@ -528,10 +535,9 @@ internal static class Program
     }
 
     /// <summary>Decodes through the codec catalog's signature dispatch, as the render path does.</summary>
-    private static ImageBuffer Decode(byte[] bytes) =>
-        PngDecoder.IsPng(bytes)
-            ? new PngImageCodec().Decode(bytes)
-            : new JpegImageCodec().Decode(bytes);
+    private static ImageBuffer Decode(byte[] bytes) => PngDecoder.IsPng(bytes)
+            ? PngImageCodec.Decode(bytes)
+            : JpegImageCodec.Decode(bytes);
 
     private static void ComparePixels(ImageBuffer expected, ImageBuffer actual)
     {
@@ -550,11 +556,11 @@ internal static class Program
     {
         (ImageCodec Codec, byte[] Bytes, string Format)[] cases =
         [
-            (new PngImageCodec(), new PngImageCodec().Encode(MakeGradient(37, 19)), "PNG"),
-            (new BmpImageCodec(), new BmpImageCodec().Encode(MakeGradient(40, 24)), "BMP"),
-            (new JpegImageCodec(), new JpegImageCodec().Encode(MakeGradient(32, 16)), "JPEG"),
-            (new GifImageCodec(), new GifImageCodec().Encode(MakeGradient(21, 13)), "GIF"),
-            (new WebpImageCodec(), new WebpImageCodec().Encode(MakeGradient(25, 11)), "WebP"),
+            (new PngImageCodec(), PngImageCodec.Encode(MakeGradient(37, 19)), "PNG"),
+            (new BmpImageCodec(), BmpImageCodec.Encode(MakeGradient(40, 24)), "BMP"),
+            (new JpegImageCodec(), JpegImageCodec.Encode(MakeGradient(32, 16)), "JPEG"),
+            (new GifImageCodec(), GifImageCodec.Encode(MakeGradient(21, 13)), "GIF"),
+            (new WebpImageCodec(), WebpImageCodec.Encode(MakeGradient(25, 11)), "WebP"),
         ];
 
         (int Width, int Height)[] expected = [(37, 19), (40, 24), (32, 16), (21, 13), (25, 11)];
@@ -562,6 +568,7 @@ internal static class Program
         for (int i = 0; i < cases.Length; i++)
         {
             (ImageCodec codec, byte[] bytes, string format) = cases[i];
+
             Assert.True(codec.TryInspect(bytes, out ImageInfo? info), $"{format} should inspect its own output.");
             Assert.Equal(expected[i].Width, info!.Width, $"{format} inspected width.");
             Assert.Equal(expected[i].Height, info.Height, $"{format} inspected height.");
@@ -583,7 +590,7 @@ internal static class Program
     private static ValueTask InspectionDoesNotDecode()
     {
         var png = new PngImageCodec();
-        byte[] full = png.Encode(MakeGradient(64, 48));
+        byte[] full = PngImageCodec.Encode(MakeGradient(64, 48));
 
         // Signature, IHDR chunk header, IHDR payload, IHDR CRC.
         byte[] headerOnly = full[..(8 + 8 + 13 + 4)];
@@ -591,7 +598,7 @@ internal static class Program
         Assert.True(png.TryInspect(headerOnly, out ImageInfo? info), "PNG header alone should inspect.");
         Assert.Equal(64, info!.Width, "Truncated PNG inspected width.");
         Assert.Equal(48, info.Height, "Truncated PNG inspected height.");
-        Assert.Throws<FormatException>(() => png.Decode(headerOnly));
+        Assert.Throws<FormatException>(() => PngImageCodec.Decode(headerOnly));
 
         return ValueTask.CompletedTask;
     }
@@ -604,7 +611,7 @@ internal static class Program
     {
         var png = new PngImageCodec();
         var jpeg = new JpegImageCodec();
-        byte[] realPng = png.Encode(MakeGradient(16, 16));
+        byte[] realPng = PngImageCodec.Encode(MakeGradient(16, 16));
 
         Assert.False(png.TryInspect(ReadOnlySpan<byte>.Empty, out _), "Empty input is not a PNG.");
         Assert.False(png.TryInspect("not an image at all"u8, out _), "Text is not a PNG.");
@@ -616,6 +623,7 @@ internal static class Program
         {
             bool read = png.TryInspect(realPng.AsSpan(0, length), out ImageInfo? info);
             Assert.Equal(read, info is not null, $"PNG prefix of {length} byte(s) disagreed with its own result.");
+
             if (read)
             {
                 Assert.Equal(16, info!.Width, $"PNG prefix of {length} byte(s) inspected width.");
@@ -640,6 +648,7 @@ internal static class Program
         // chroma as green and blue.
         const byte Grey = 100;
         byte[] rgba = new byte[16 * 16 * 4];
+
         for (int i = 0; i < rgba.Length; i += 4)
         {
             rgba[i] = Grey;
@@ -648,11 +657,10 @@ internal static class Program
             rgba[i + 3] = 255;
         }
 
-        var codec = new JpegImageCodec();
-        byte[] jpeg = codec.Encode(new ImageBuffer(16, 16, rgba), quality: 100);
+        byte[] jpeg = JpegImageCodec.Encode(new ImageBuffer(16, 16, rgba), quality: 100);
 
-        ImageBuffer converted = codec.Decode(jpeg);
-        ImageBuffer asStored = codec.Decode(jpeg, JpegColorTransform.None);
+        ImageBuffer converted = JpegImageCodec.Decode(jpeg);
+        ImageBuffer asStored = JpegImageCodec.Decode(jpeg, JpegColorTransform.None);
 
         Assert.True(Near(converted.Rgba[0], Grey), $"Converted red should be the grey, got {converted.Rgba[0]}.");
         Assert.True(Near(converted.Rgba[1], Grey), $"Converted green should be the grey, got {converted.Rgba[1]}.");
@@ -663,9 +671,7 @@ internal static class Program
         Assert.True(Near(asStored.Rgba[2], 128), $"Untransformed blue is Cr, got {asStored.Rgba[2]}.");
 
         // The flag has to change something, or the test above proves nothing.
-        Assert.True(
-            asStored.Rgba[1] != converted.Rgba[1],
-            "Reading the same bytes both ways produced the same pixels.");
+        Assert.True(asStored.Rgba[1] != converted.Rgba[1], "Reading the same bytes both ways produced the same pixels.");
 
         return ValueTask.CompletedTask;
     }
@@ -677,14 +683,15 @@ internal static class Program
     {
         byte[] rgba = new byte[width * height * 4];
         int i = 0;
+
         for (int y = 0; y < height; y++)
-        for (int x = 0; x < width; x++)
-        {
-            rgba[i++] = (byte)(x * 7 + 1);
-            rgba[i++] = (byte)(y * 11 + 2);
-            rgba[i++] = (byte)((x ^ y) * 13 + 3);
-            rgba[i++] = (byte)(255 - ((x + y) & 0xFF));
-        }
+            for (int x = 0; x < width; x++)
+            {
+                rgba[i++] = (byte)(x * 7 + 1);
+                rgba[i++] = (byte)(y * 11 + 2);
+                rgba[i++] = (byte)((x ^ y) * 13 + 3);
+                rgba[i++] = (byte)(255 - ((x + y) & 0xFF));
+            }
 
         return new ImageBuffer(width, height, rgba);
     }
@@ -723,8 +730,7 @@ internal static class Program
         return rgba;
     }
 
-    private static ImageBuffer FillImage(int width, int height, byte r, byte g, byte b, byte a) =>
-        new(width, height, Fill(width, height, r, g, b, a));
+    private static ImageBuffer FillImage(int width, int height, byte r, byte g, byte b, byte a) => new(width, height, Fill(width, height, r, g, b, a));
 
     private static string FindMediaRoot()
     {

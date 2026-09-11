@@ -1,6 +1,6 @@
 using System;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
 internal ref struct WebpBitReader
 {
@@ -13,6 +13,7 @@ internal ref struct WebpBitReader
     {
         if (bitCount < 0 || bitCount > 24)
             throw new ArgumentOutOfRangeException(nameof(bitCount));
+
         if (_bitOffset + bitCount > _data.Length * 8)
             throw new FormatException("Truncated WebP lossless bitstream.");
 

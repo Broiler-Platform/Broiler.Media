@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using Broiler.Media;
 
 namespace Broiler.Media.Image;
 
@@ -42,10 +41,11 @@ public static class ImageCodecCatalogExtensions
         {
             if (codec is not ImageCodec imageCodec)
                 continue;
+
             if (!codec.Descriptor.Capabilities.HasFlag(MediaCodecCapabilities.Encode))
                 continue;
-            if (codec.Descriptor.Formats.Any(descriptor =>
-                    descriptor.MimeTypes.Contains(mime, StringComparer.OrdinalIgnoreCase)))
+
+            if (codec.Descriptor.Formats.Any(descriptor => descriptor.MimeTypes.Contains(mime, StringComparer.OrdinalIgnoreCase)))
             {
                 return imageCodec;
             }

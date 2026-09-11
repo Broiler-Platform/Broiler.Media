@@ -2,19 +2,12 @@ using System;
 
 namespace Broiler.Media;
 
-public sealed class MediaProbeRequest
+public sealed class MediaProbeRequest(ReadOnlyMemory<byte> prefix, MediaSourceHints? hints = null, MediaLimits? limits = null)
 {
-    public MediaProbeRequest(ReadOnlyMemory<byte> prefix, MediaSourceHints? hints = null, MediaLimits? limits = null)
-    {
-        Prefix = prefix;
-        Hints = hints ?? MediaSourceHints.Empty;
-        Limits = limits ?? MediaLimits.Default;
-    }
+    public ReadOnlyMemory<byte> Prefix { get; } = prefix;
 
-    public ReadOnlyMemory<byte> Prefix { get; }
+    public MediaSourceHints Hints { get; } = hints ?? MediaSourceHints.Empty;
 
-    public MediaSourceHints Hints { get; }
-
-    public MediaLimits Limits { get; }
+    public MediaLimits Limits { get; } = limits ?? MediaLimits.Default;
 }
 

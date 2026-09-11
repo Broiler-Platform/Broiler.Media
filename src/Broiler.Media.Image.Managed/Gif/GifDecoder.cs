@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Gif;
 
 internal static class GifDecoder
 {
@@ -48,11 +48,7 @@ internal static class GifDecoder
         public byte TransparentIndex;
     }
 
-    private readonly struct GraphicControl(
-        int delayHundredths,
-        int disposal,
-        bool hasTransparency,
-        byte transparentIndex)
+    private readonly struct GraphicControl(int delayHundredths, int disposal, bool hasTransparency, byte transparentIndex)
     {
         public readonly int DelayHundredths = delayHundredths;
         public readonly int Disposal = disposal;
@@ -66,6 +62,7 @@ internal static class GifDecoder
     {
         if (!IsGif(data))
             throw new FormatException("Data does not start with a GIF signature.");
+
         if (data.Length < 13)
             throw new FormatException("Truncated GIF logical screen descriptor.");
 
@@ -131,11 +128,7 @@ internal static class GifDecoder
         return gif;
     }
 
-    private static GifFrame ReadImage(
-        ReadOnlySpan<byte> data,
-        ref int offset,
-        byte[]? globalPalette,
-        GraphicControl control)
+    private static GifFrame ReadImage(ReadOnlySpan<byte> data, ref int offset, byte[]? globalPalette, GraphicControl control)
     {
         if (offset + 9 > data.Length)
             throw new FormatException("Truncated GIF image descriptor.");
@@ -150,11 +143,9 @@ internal static class GifDecoder
         if (width <= 0 || height <= 0)
             throw new FormatException("GIF frame has non-positive dimensions.");
 
-        byte[]? palette = (packed & 0x80) != 0
+        byte[]? palette = ((packed & 0x80) != 0
             ? ReadPalette(data, ref offset, 1 << ((packed & 0x07) + 1))
-            : globalPalette;
-        if (palette is null)
-            throw new FormatException("GIF frame is missing a color table.");
+            : globalPalette) ?? throw new FormatException("GIF frame is missing a color table.");
 
         if (offset >= data.Length)
             throw new FormatException("Truncated GIF image data.");
@@ -214,10 +205,8 @@ internal static class GifDecoder
         offset += blockSize;
         byte[] subBlocks = ReadSubBlocks(data, ref offset);
 
-        if (blockSize == 11 &&
-            (AsciiEquals(app, "NETSCAPE2.0") || AsciiEquals(app, "ANIMEXTS1.0")) &&
-            subBlocks.Length >= 3 &&
-            subBlocks[0] == 1)
+        if (blockSize == 11 && (AsciiEquals(app, "NETSCAPE2.0") || AsciiEquals(app, "ANIMEXTS1.0")) &&
+            subBlocks.Length >= 3 && subBlocks[0] == 1)
         {
             gif.LoopCount = BinaryPrimitives.ReadUInt16LittleEndian(subBlocks.AsSpan(1, 2));
         }
@@ -242,10 +231,7 @@ internal static class GifDecoder
                 : null;
 
             DrawFrame(canvas, gif.Width, frame);
-            frames.Add(new ImageFrame(
-                new ImageBuffer(gif.Width, gif.Height, (byte[])canvas.Clone()),
-                frame.DelayHundredths,
-                100));
+            frames.Add(new ImageFrame(new ImageBuffer(gif.Width, gif.Height, (byte[])canvas.Clone()), frame.DelayHundredths, 100));
 
             if (frame.Disposal == 2)
                 ClearRegion(canvas, gif.Width, frame.X, frame.Y, frame.Width, frame.Height);
@@ -259,22 +245,22 @@ internal static class GifDecoder
     private static void DrawFrame(byte[] canvas, int canvasWidth, GifFrame frame)
     {
         for (int y = 0; y < frame.Height; y++)
-        for (int x = 0; x < frame.Width; x++)
-        {
-            byte index = frame.Indices[y * frame.Width + x];
-            if (frame.HasTransparency && index == frame.TransparentIndex)
-                continue;
+            for (int x = 0; x < frame.Width; x++)
+            {
+                byte index = frame.Indices[y * frame.Width + x];
+                if (frame.HasTransparency && index == frame.TransparentIndex)
+                    continue;
 
-            int paletteOffset = index * 3;
-            if (paletteOffset + 2 >= frame.Palette.Length)
-                throw new FormatException("GIF palette index out of range.");
+                int paletteOffset = index * 3;
+                if (paletteOffset + 2 >= frame.Palette.Length)
+                    throw new FormatException("GIF palette index out of range.");
 
-            int dst = ((frame.Y + y) * canvasWidth + frame.X + x) * 4;
-            canvas[dst] = frame.Palette[paletteOffset];
-            canvas[dst + 1] = frame.Palette[paletteOffset + 1];
-            canvas[dst + 2] = frame.Palette[paletteOffset + 2];
-            canvas[dst + 3] = 255;
-        }
+                int dst = ((frame.Y + y) * canvasWidth + frame.X + x) * 4;
+                canvas[dst] = frame.Palette[paletteOffset];
+                canvas[dst + 1] = frame.Palette[paletteOffset + 1];
+                canvas[dst + 2] = frame.Palette[paletteOffset + 2];
+                canvas[dst + 3] = 255;
+            }
     }
 
     private static byte[] DecodeLzw(ReadOnlySpan<byte> data, int minimumCodeSize, int expectedPixels)
@@ -423,8 +409,7 @@ internal static class GifDecoder
         return output.ToArray();
     }
 
-    private static void SkipSubBlocks(ReadOnlySpan<byte> data, ref int offset) =>
-        _ = ReadSubBlocks(data, ref offset);
+    private static void SkipSubBlocks(ReadOnlySpan<byte> data, ref int offset) => _ = ReadSubBlocks(data, ref offset);
 
     private static void SkipFixedExtensionAndSubBlocks(ReadOnlySpan<byte> data, ref int offset)
     {

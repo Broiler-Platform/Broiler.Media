@@ -1,7 +1,7 @@
 using System;
 using System.Buffers.Binary;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Bmp;
 
 /// <summary>
 /// Pure-managed decoder for uncompressed (BI_RGB) Windows BMP files using a
@@ -18,6 +18,7 @@ internal static class BmpDecoder
     {
         if (!IsBmp(data))
             throw new FormatException("Data does not start with a BMP signature.");
+        
         if (data.Length < 54)
             throw new FormatException("Truncated BMP: smaller than a BITMAPINFOHEADER.");
 
@@ -33,8 +34,10 @@ internal static class BmpDecoder
 
         if (compression != 0 && compression != 3)
             throw new NotSupportedException($"BMP compression method {compression} is not supported.");
+        
         if (bitCount != 24 && bitCount != 32)
             throw new NotSupportedException($"Only 24bpp and 32bpp BMPs are supported (got {bitCount}bpp).");
+        
         if (width <= 0)
             throw new FormatException("BMP has a non-positive width.");
 
@@ -45,7 +48,7 @@ internal static class BmpDecoder
 
         int bytesPerPixel = bitCount / 8;
         int rowStride = ((width * bitCount + 31) / 32) * 4; // rows padded to 4 bytes
-        long needed = (long)pixelOffset + (long)rowStride * height;
+        long needed = pixelOffset + (long)rowStride * height;
         if (pixelOffset >= data.Length || needed > data.Length)
             throw new FormatException("BMP pixel data is truncated.");
 

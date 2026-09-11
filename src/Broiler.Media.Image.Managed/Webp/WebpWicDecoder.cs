@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
 internal static class WebpWicDecoder
 {
@@ -83,8 +83,7 @@ internal static class WebpWicDecoder
             ThrowIfFailed(decoder.GetFrame(0, out frame));
             ThrowIfFailed(factory.CreateFormatConverter(out converter));
 
-            Guid sourceFormat;
-            ThrowIfFailed(frame.GetPixelFormat(out sourceFormat));
+            ThrowIfFailed(frame.GetPixelFormat(out Guid sourceFormat));
             ImageBuffer? image = TryConvertAndCopy(converter, frame, sourceFormat, PixelFormat32bppRgba, swizzleBgraToRgba: false);
             if (image is not null)
                 return image;
@@ -102,20 +101,18 @@ internal static class WebpWicDecoder
             Release(decoder);
             Release(factory);
             Release(stream);
+
             if (uninitializeCom)
                 CoUninitialize();
         }
     }
 
-    private static ImageBuffer? TryConvertAndCopy(
-        IWICFormatConverter converter,
-        IWICBitmapFrameDecode source,
-        Guid sourceFormat,
-        Guid destinationFormat,
-        bool swizzleBgraToRgba)
+    private static ImageBuffer? TryConvertAndCopy(IWICFormatConverter converter, IWICBitmapFrameDecode source,
+        Guid sourceFormat, Guid destinationFormat, bool swizzleBgraToRgba)
     {
         Guid requestedFormat = destinationFormat;
         int hr = converter.CanConvert(ref sourceFormat, ref requestedFormat, out int canConvert);
+
         if (hr < 0 || canConvert == 0)
             return null;
 
@@ -125,10 +122,12 @@ internal static class WebpWicDecoder
             return null;
 
         ThrowIfFailed(converter.GetSize(out uint widthValue, out uint heightValue));
+
         int width = checked((int)widthValue);
         int height = checked((int)heightValue);
         int stride = checked(width * 4);
         byte[] rgba = new byte[checked(stride * height)];
+
         CopyPixels(converter, stride, rgba);
 
         if (swizzleBgraToRgba)
@@ -155,11 +154,14 @@ internal static class WebpWicDecoder
     {
         int paddedPayloadLength = checked(vp8Payload.Length + (vp8Payload.Length & 1));
         byte[] webp = new byte[checked(12 + 8 + paddedPayloadLength)];
+
         WriteFourCc(webp.AsSpan(0, 4), "RIFF");
         BinaryPrimitives.WriteUInt32LittleEndian(webp.AsSpan(4, 4), checked((uint)(webp.Length - 8)));
+
         WriteFourCc(webp.AsSpan(8, 4), "WEBP");
         WriteFourCc(webp.AsSpan(12, 4), "VP8 ");
         BinaryPrimitives.WriteUInt32LittleEndian(webp.AsSpan(16, 4), checked((uint)vp8Payload.Length));
+
         vp8Payload.CopyTo(webp.AsSpan(20));
         return webp;
     }
@@ -167,8 +169,10 @@ internal static class WebpWicDecoder
     private static bool InitializeComForCurrentThread()
     {
         int hr = CoInitializeEx(IntPtr.Zero, CoInitMultithreaded);
+
         if (hr == 0 || hr == 1)
             return true;
+
         if (hr == RpcEChangedMode)
             return false;
 
@@ -230,11 +234,7 @@ internal static class WebpWicDecoder
     }
 
     [DllImport("ole32.dll")]
-    private static extern int CoCreateInstance(
-        ref Guid rclsid,
-        IntPtr pUnkOuter,
-        uint dwClsContext,
-        ref Guid riid,
+    private static extern int CoCreateInstance(ref Guid rclsid, IntPtr pUnkOuter, uint dwClsContext, ref Guid riid,
         [MarshalAs(UnmanagedType.Interface)] out IWICImagingFactory ppv);
 
     [DllImport("ole32.dll")]
@@ -297,13 +297,8 @@ internal static class WebpWicDecoder
         int CopyPixels(IntPtr prc, uint cbStride, uint cbBufferSize, IntPtr pbBuffer);
 
         [PreserveSig]
-        int Initialize(
-            IWICBitmapFrameDecode pISource,
-            ref Guid dstFormat,
-            int dither,
-            IntPtr pIPalette,
-            double alphaThresholdPercent,
-            int paletteTranslate);
+        int Initialize(IWICBitmapFrameDecode pISource, ref Guid dstFormat, int dither, IntPtr pIPalette,
+            double alphaThresholdPercent, int paletteTranslate);
 
         [PreserveSig]
         int CanConvert(ref Guid srcPixelFormat, ref Guid dstPixelFormat, out int pfCanConvert);
@@ -354,26 +349,14 @@ internal static class WebpWicDecoder
     private interface IWICImagingFactory
     {
         [PreserveSig]
-        int CreateDecoderFromFilename(
-            [MarshalAs(UnmanagedType.LPWStr)] string wzFilename,
-            IntPtr pguidVendor,
-            uint dwDesiredAccess,
-            int metadataOptions,
-            out IWICBitmapDecoder ppIDecoder);
+        int CreateDecoderFromFilename([MarshalAs(UnmanagedType.LPWStr)] string wzFilename, IntPtr pguidVendor,
+            uint dwDesiredAccess, int metadataOptions, out IWICBitmapDecoder ppIDecoder);
 
         [PreserveSig]
-        int CreateDecoderFromStream(
-            IStream pIStream,
-            IntPtr pguidVendor,
-            int metadataOptions,
-            out IWICBitmapDecoder ppIDecoder);
+        int CreateDecoderFromStream(IStream pIStream, IntPtr pguidVendor, int metadataOptions, out IWICBitmapDecoder ppIDecoder);
 
         [PreserveSig]
-        int CreateDecoderFromFileHandle(
-            IntPtr hFile,
-            IntPtr pguidVendor,
-            int metadataOptions,
-            out IWICBitmapDecoder ppIDecoder);
+        int CreateDecoderFromFileHandle(IntPtr hFile, IntPtr pguidVendor, int metadataOptions, out IWICBitmapDecoder ppIDecoder);
 
         [PreserveSig]
         int CreateComponentInfo(ref Guid clsidComponent, out IntPtr ppIInfo);

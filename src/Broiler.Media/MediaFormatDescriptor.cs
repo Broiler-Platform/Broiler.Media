@@ -7,10 +7,7 @@ namespace Broiler.Media;
 
 public sealed class MediaFormatDescriptor
 {
-    public MediaFormatDescriptor(
-        string name,
-        IEnumerable<string>? mimeTypes = null,
-        IEnumerable<string>? fileExtensions = null)
+    public MediaFormatDescriptor(string name, IEnumerable<string>? mimeTypes = null, IEnumerable<string>? fileExtensions = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("A media format name cannot be empty.", nameof(name));
@@ -31,15 +28,14 @@ public sealed class MediaFormatDescriptor
         if (values is null)
             return Array.AsReadOnly(Array.Empty<string>());
 
-        string[] normalized = values
+        string[] normalized = [.. values
             .Select(value =>
             {
                 if (string.IsNullOrWhiteSpace(value))
                     throw new ArgumentException("Format descriptors cannot contain empty values.", parameterName);
+
                 return value.Trim();
-            })
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            }).Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return Array.AsReadOnly(normalized);
     }

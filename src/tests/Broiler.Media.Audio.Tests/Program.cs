@@ -51,26 +51,15 @@ internal static class Program
     private static ValueTask AudioBufferShape()
     {
         byte[] samples = new byte[4 * 2 * AudioBuffer.BytesPerSample(AudioSampleFormat.PcmS16Interleaved)];
-        var buffer = new AudioBuffer(
-            samples,
-            AudioSampleFormat.PcmS16Interleaved,
-            sampleRate: 48_000,
-            channels: 2,
-            frameCount: 4,
-            timestamp: TimeSpan.FromMilliseconds(5),
-            duration: TimeSpan.FromMilliseconds(10));
+        var buffer = new AudioBuffer(samples, AudioSampleFormat.PcmS16Interleaved, sampleRate: 48_000, channels: 2,
+            frameCount: 4, timestamp: TimeSpan.FromMilliseconds(5), duration: TimeSpan.FromMilliseconds(10));
 
         Assert.Equal(4, buffer.FrameCount);
         Assert.Equal(2, buffer.Channels);
         Assert.Equal(TimeSpan.FromMilliseconds(10), buffer.Duration);
-        Assert.Throws<ArgumentException>(() => _ = new AudioBuffer(
-            ReadOnlyMemory<byte>.Empty,
-            AudioSampleFormat.PcmS16Interleaved,
-            48_000,
-            2,
-            4,
-            TimeSpan.Zero,
-            TimeSpan.Zero));
+        Assert.Throws<ArgumentException>(() => _ = new AudioBuffer(ReadOnlyMemory<byte>.Empty,
+            AudioSampleFormat.PcmS16Interleaved, 48_000, 2, 4, TimeSpan.Zero, TimeSpan.Zero));
+
         return ValueTask.CompletedTask;
     }
 
@@ -101,43 +90,22 @@ internal static class Program
     }
 
     private static AudioBuffer SilentBuffer() =>
-        new(
-            new byte[2 * AudioBuffer.BytesPerSample(AudioSampleFormat.PcmS16Interleaved)],
-            AudioSampleFormat.PcmS16Interleaved,
-            sampleRate: 48_000,
-            channels: 2,
-            frameCount: 1,
-            timestamp: TimeSpan.Zero,
-            duration: TimeSpan.FromSeconds(1.0 / 48_000));
+        new(new byte[2 * AudioBuffer.BytesPerSample(AudioSampleFormat.PcmS16Interleaved)],
+            AudioSampleFormat.PcmS16Interleaved, sampleRate: 48_000, channels: 2, frameCount: 1,
+            timestamp: TimeSpan.Zero, duration: TimeSpan.FromSeconds(1.0 / 48_000));
 
-    private sealed class FakeAudioCodec : AudioCodec
+    private sealed class FakeAudioCodec(MediaKind kind) : AudioCodec(new MediaCodecDescriptor(new MediaCodecId($"fake.audio.{kind}"),
+                "Fake Audio", kind, MediaCodecCapabilities.Decode))
     {
-        public FakeAudioCodec(MediaKind kind)
-            : base(new MediaCodecDescriptor(
-                new MediaCodecId($"fake.audio.{kind}"),
-                "Fake Audio",
-                kind,
-                MediaCodecCapabilities.Decode))
-        {
-        }
-
-        public override ValueTask<MediaProbeResult> ProbeAsync(
-            MediaProbeRequest request,
-            CancellationToken cancellationToken = default) =>
+        public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(MediaProbeResult.NoMatch(MediaKind.Audio));
 
-        public override ValueTask<AudioStreamInfo> GetInfoAsync(
-            MediaInput input,
-            AudioDecodeOptions? options = null,
-            CancellationToken cancellationToken = default) =>
+        public override ValueTask<AudioStreamInfo> GetInfoAsync(MediaInput input,
+            AudioDecodeOptions? options = null, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(new AudioStreamInfo(48_000, 2, AudioSampleFormat.PcmS16Interleaved));
 
-        public override ValueTask DecodeAsync(
-            MediaInput input,
-            IAudioOutput output,
-            AudioDecodeOptions? options = null,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.CompletedTask;
+        public override ValueTask DecodeAsync(MediaInput input, IAudioOutput output,
+            AudioDecodeOptions? options = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 
     private sealed class RecordingAudioOutput(int capacity) : IAudioOutput

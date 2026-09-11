@@ -9,20 +9,11 @@ public sealed class ImageBuffer
     {
     }
 
-    public ImageBuffer(
-        int width,
-        int height,
-        ImagePixelFormat pixelFormat,
-        ImageAlphaMode alphaMode,
-        int stride,
-        ReadOnlyMemory<byte> pixels)
+    public ImageBuffer(int width, int height, ImagePixelFormat pixelFormat, ImageAlphaMode alphaMode, int stride, ReadOnlyMemory<byte> pixels)
     {
-        if (width <= 0)
-            throw new ArgumentOutOfRangeException(nameof(width));
-        if (height <= 0)
-            throw new ArgumentOutOfRangeException(nameof(height));
-        if (stride <= 0)
-            throw new ArgumentOutOfRangeException(nameof(stride));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(stride);
 
         int minimumStride = checked(width * BytesPerPixel(pixelFormat));
         if (stride < minimumStride)

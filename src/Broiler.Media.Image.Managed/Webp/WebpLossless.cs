@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
 internal static class WebpLossless
 {
@@ -31,39 +31,39 @@ internal static class WebpLossless
             switch (transformType)
             {
                 case 0:
-                {
-                    int sizeBits = reader.ReadBits(3) + 2;
-                    int transformWidth = DivRoundUp(codedWidth, 1 << sizeBits);
-                    int transformHeight = DivRoundUp(codedHeight, 1 << sizeBits);
-                    transforms.Add(new PredictorTransform(
-                        sizeBits,
-                        transformWidth,
-                        DecodeImageData(ref reader, transformWidth, transformHeight, allowMetaPrefix: false)));
-                    break;
-                }
+                    {
+                        int sizeBits = reader.ReadBits(3) + 2;
+                        int transformWidth = DivRoundUp(codedWidth, 1 << sizeBits);
+                        int transformHeight = DivRoundUp(codedHeight, 1 << sizeBits);
+                        transforms.Add(new PredictorTransform(
+                            sizeBits,
+                            transformWidth,
+                            DecodeImageData(ref reader, transformWidth, transformHeight, allowMetaPrefix: false)));
+                        break;
+                    }
                 case 1:
-                {
-                    int sizeBits = reader.ReadBits(3) + 2;
-                    int transformWidth = DivRoundUp(codedWidth, 1 << sizeBits);
-                    int transformHeight = DivRoundUp(codedHeight, 1 << sizeBits);
-                    transforms.Add(new ColorTransform(
-                        sizeBits,
-                        transformWidth,
-                        DecodeImageData(ref reader, transformWidth, transformHeight, allowMetaPrefix: false)));
-                    break;
-                }
+                    {
+                        int sizeBits = reader.ReadBits(3) + 2;
+                        int transformWidth = DivRoundUp(codedWidth, 1 << sizeBits);
+                        int transformHeight = DivRoundUp(codedHeight, 1 << sizeBits);
+                        transforms.Add(new ColorTransform(
+                            sizeBits,
+                            transformWidth,
+                            DecodeImageData(ref reader, transformWidth, transformHeight, allowMetaPrefix: false)));
+                        break;
+                    }
                 case 2:
                     transforms.Add(SubtractGreenTransform.Instance);
                     break;
                 case 3:
-                {
-                    int colorTableSize = reader.ReadBits(8) + 1;
-                    uint[] colorTable = DecodeImageData(ref reader, colorTableSize, 1, allowMetaPrefix: false);
-                    int widthBits = colorTableSize <= 2 ? 3 : colorTableSize <= 4 ? 2 : colorTableSize <= 16 ? 1 : 0;
-                    transforms.Add(new ColorIndexingTransform(colorTable, widthBits, codedWidth));
-                    codedWidth = DivRoundUp(codedWidth, 1 << widthBits);
-                    break;
-                }
+                    {
+                        int colorTableSize = reader.ReadBits(8) + 1;
+                        uint[] colorTable = DecodeImageData(ref reader, colorTableSize, 1, allowMetaPrefix: false);
+                        int widthBits = colorTableSize <= 2 ? 3 : colorTableSize <= 4 ? 2 : colorTableSize <= 16 ? 1 : 0;
+                        transforms.Add(new ColorIndexingTransform(colorTable, widthBits, codedWidth));
+                        codedWidth = DivRoundUp(codedWidth, 1 << widthBits);
+                        break;
+                    }
                 default:
                     throw new FormatException("Unknown WebP lossless transform.");
             }
@@ -126,11 +126,7 @@ internal static class WebpLossless
         return output.ToArray();
     }
 
-    private static uint[] DecodeImageData(
-        ref WebpBitReader reader,
-        int width,
-        int height,
-        bool allowMetaPrefix)
+    private static uint[] DecodeImageData(ref WebpBitReader reader, int width, int height, bool allowMetaPrefix)
     {
         int colorCacheBits = 0;
         int colorCacheSize = 0;
@@ -310,12 +306,8 @@ internal static class WebpLossless
 
     private static byte B(uint pixel) => (byte)pixel;
 
-    private readonly struct PrefixCodeGroup(
-        WebpHuffmanCode green,
-        WebpHuffmanCode red,
-        WebpHuffmanCode blue,
-        WebpHuffmanCode alpha,
-        WebpHuffmanCode distance)
+    private readonly struct PrefixCodeGroup(WebpHuffmanCode green, WebpHuffmanCode red, WebpHuffmanCode blue, 
+        WebpHuffmanCode alpha, WebpHuffmanCode distance)
     {
         public readonly WebpHuffmanCode Green = green;
         public readonly WebpHuffmanCode Red = red;
@@ -335,19 +327,19 @@ internal static class WebpLossless
         {
             uint[] output = new uint[pixels.Length];
             for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                int index = y * width + x;
-                uint predictor = BorderPredictor(output, width, height, x, y);
-                if (x > 0 && y > 0)
+                for (int x = 0; x < width; x++)
                 {
-                    int modeIndex = (y >> sizeBits) * transformWidth + (x >> sizeBits);
-                    int mode = G(modes[modeIndex]);
-                    predictor = Predict(output, width, height, x, y, mode);
-                }
+                    int index = y * width + x;
+                    uint predictor = BorderPredictor(output, width, height, x, y);
+                    if (x > 0 && y > 0)
+                    {
+                        int modeIndex = (y >> sizeBits) * transformWidth + (x >> sizeBits);
+                        int mode = G(modes[modeIndex]);
+                        predictor = Predict(output, width, height, x, y, mode);
+                    }
 
-                output[index] = AddArgb(pixels[index], predictor);
-            }
+                    output[index] = AddArgb(pixels[index], predictor);
+                }
 
             return output;
         }
@@ -355,10 +347,13 @@ internal static class WebpLossless
         private static uint BorderPredictor(uint[] output, int width, int height, int x, int y)
         {
             _ = height;
+
             if (x == 0 && y == 0)
                 return 0xFF000000;
+
             if (y == 0)
                 return output[x - 1];
+
             if (x == 0)
                 return output[(y - 1) * width];
 
@@ -434,20 +429,20 @@ internal static class WebpLossless
         {
             uint[] output = new uint[pixels.Length];
             for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                int index = y * width + x;
-                uint pixel = pixels[index];
-                uint element = elements[(y >> sizeBits) * transformWidth + (x >> sizeBits)];
+                for (int x = 0; x < width; x++)
+                {
+                    int index = y * width + x;
+                    uint pixel = pixels[index];
+                    uint element = elements[(y >> sizeBits) * transformWidth + (x >> sizeBits)];
 
-                byte red = R(pixel);
-                byte green = G(pixel);
-                byte blue = B(pixel);
-                red = (byte)(red + ColorTransformDelta(B(element), green));
-                blue = (byte)(blue + ColorTransformDelta(G(element), green));
-                blue = (byte)(blue + ColorTransformDelta(R(element), red));
-                output[index] = Pack(A(pixel), red, green, blue);
-            }
+                    byte red = R(pixel);
+                    byte green = G(pixel);
+                    byte blue = B(pixel);
+                    red = (byte)(red + ColorTransformDelta(B(element), green));
+                    blue = (byte)(blue + ColorTransformDelta(G(element), green));
+                    blue = (byte)(blue + ColorTransformDelta(R(element), red));
+                    output[index] = Pack(A(pixel), red, green, blue);
+                }
 
             return output;
         }
@@ -495,15 +490,15 @@ internal static class WebpLossless
             int indexMask = (1 << bitsPerIndex) - 1;
 
             for (int y = 0; y < height; y++)
-            for (int x = 0; x < _outputWidth; x++)
-            {
-                uint packed = pixels[y * width + (x >> _widthBits)];
-                int tableIndex = _widthBits == 0
-                    ? G(packed)
-                    : (G(packed) >> ((x & (pixelsPerPackedPixel - 1)) * bitsPerIndex)) & indexMask;
+                for (int x = 0; x < _outputWidth; x++)
+                {
+                    uint packed = pixels[y * width + (x >> _widthBits)];
+                    int tableIndex = _widthBits == 0
+                        ? G(packed)
+                        : (G(packed) >> ((x & (pixelsPerPackedPixel - 1)) * bitsPerIndex)) & indexMask;
 
-                output[y * _outputWidth + x] = tableIndex < _colorTable.Length ? _colorTable[tableIndex] : 0;
-            }
+                    output[y * _outputWidth + x] = tableIndex < _colorTable.Length ? _colorTable[tableIndex] : 0;
+                }
 
             width = _outputWidth;
             return output;
@@ -513,6 +508,7 @@ internal static class WebpLossless
         {
             uint[] accumulated = new uint[colorTable.Length];
             uint previous = 0;
+
             for (int i = 0; i < colorTable.Length; i++)
             {
                 previous = AddArgb(previous, colorTable[i]);

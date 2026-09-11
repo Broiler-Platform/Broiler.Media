@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Builds an optimal JPEG Huffman table specification (<c>BITS</c> / <c>HUFFVAL</c>,
@@ -106,16 +106,19 @@ internal static class JpegOptimalHuffman
     {
         int found = -1;
         long best = long.MaxValue;
+
         for (int i = 0; i <= 256; i++)
         {
             if (i == exclude || freq[i] == 0)
                 continue;
+
             if (freq[i] <= best)
             {
                 best = freq[i];
                 found = i;
             }
         }
+
         return found;
     }
 }

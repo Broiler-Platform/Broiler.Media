@@ -57,9 +57,7 @@ internal static class Program
 
     private static ValueTask ImageBufferShape()
     {
-        var buffer = new ImageBuffer(
-            2,
-            2,
+        var buffer = new ImageBuffer(2, 2,
             ImagePixelFormat.Rgba8,
             ImageAlphaMode.Straight,
             stride: 8,
@@ -67,20 +65,19 @@ internal static class Program
 
         Assert.Equal(2, buffer.Width);
         Assert.Equal(8, buffer.Stride);
-        Assert.Throws<ArgumentException>(() => _ = new ImageBuffer(
-            2,
-            2,
+
+        Assert.Throws<ArgumentException>(() => _ = new ImageBuffer(2, 2,
             ImagePixelFormat.Rgba8,
             ImageAlphaMode.Straight,
             stride: 7,
             pixels: new byte[16]));
-        Assert.Throws<ArgumentException>(() => _ = new ImageBuffer(
-            2,
-            2,
+
+        Assert.Throws<ArgumentException>(() => _ = new ImageBuffer(2, 2,
             ImagePixelFormat.Rgba8,
             ImageAlphaMode.Straight,
             stride: 8,
             pixels: new byte[15]));
+
         return ValueTask.CompletedTask;
     }
 
@@ -92,6 +89,7 @@ internal static class Program
         Assert.False(sequence.IsAnimated);
         Assert.Equal(1, sequence.Frames.Count);
         Assert.Equal(buffer, sequence.FirstFrame);
+
         return ValueTask.CompletedTask;
     }
 
@@ -100,8 +98,7 @@ internal static class Program
         var codec = new FakeImageCodec(MediaKind.Image);
         ImageSequence sequence = ImageSequence.Static(Rgba1x1());
 
-        await Assert.ThrowsAsync<NotSupportedException>(
-            () => codec.EncodeAsync(sequence, Stream.Null).AsTask()).ConfigureAwait(false);
+        await Assert.ThrowsAsync<NotSupportedException>(() => codec.EncodeAsync(sequence, Stream.Null).AsTask()).ConfigureAwait(false);
     }
 
     private static ValueTask FrameSelectionAtPresentationTime()
@@ -140,9 +137,7 @@ internal static class Program
         Assert.Equal(1, sequence.FrameIndexAt(TimeSpan.FromMilliseconds(300)));
 
         // A zero delay is the same case: "as fast as possible", not "no time at all".
-        Assert.Equal(
-            TimeSpan.FromMilliseconds(100),
-            Animation(0, [0, 0]).Frames[0].EffectiveDuration);
+        Assert.Equal(TimeSpan.FromMilliseconds(100), Animation(0, [0, 0]).Frames[0].EffectiveDuration);
 
         // A delay on the threshold is honoured as written.
         Assert.Equal(TimeSpan.FromMilliseconds(11), Animation(0, [11, 11]).Frames[0].EffectiveDuration);
@@ -246,23 +241,12 @@ internal static class Program
         return new ImageSequence(frames, 1, 1, loopCount);
     }
 
-    private static ImageBuffer Rgba1x1() =>
-        new(1, 1, ImagePixelFormat.Rgba8, ImageAlphaMode.Straight, 4, new byte[4]);
+    private static ImageBuffer Rgba1x1() => new(1, 1, ImagePixelFormat.Rgba8, ImageAlphaMode.Straight, 4, new byte[4]);
 
-    private sealed class FakeImageCodec : ImageCodec
+    private sealed class FakeImageCodec(MediaKind kind) : ImageCodec(new MediaCodecDescriptor(
+        new MediaCodecId($"fake.image.{kind}"), "Fake Image", kind, MediaCodecCapabilities.Decode))
     {
-        public FakeImageCodec(MediaKind kind)
-            : base(new MediaCodecDescriptor(
-                new MediaCodecId($"fake.image.{kind}"),
-                "Fake Image",
-                kind,
-                MediaCodecCapabilities.Decode))
-        {
-        }
-
-        public override ValueTask<MediaProbeResult> ProbeAsync(
-            MediaProbeRequest request,
-            CancellationToken cancellationToken = default) =>
+        public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(MediaProbeResult.NoMatch(MediaKind.Image));
 
         protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options) =>

@@ -58,34 +58,20 @@ public sealed class MediaLimits
         long maxCoefficientBytes = DefaultMaxCoefficientBytes,
         long maxBlocks = DefaultMaxBlocks)
     {
-        if (maxProbeBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxProbeBytes));
-        if (maxEncodedBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxEncodedBytes));
-        if (maxDecodedBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxDecodedBytes));
-        if (maxDecodedSamples <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxDecodedSamples));
-        if (maxImagePixels <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxImagePixels));
-        if (maxFrames <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxFrames));
-        if (maxImageDimension <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxImageDimension));
-        if (maxComponents <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxComponents));
-        if (maxSamplingFactor <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxSamplingFactor));
-        if (maxScans <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxScans));
-        if (maxRestartInterval < 0)
-            throw new ArgumentOutOfRangeException(nameof(maxRestartInterval));
-        if (maxMarkerSegments <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxMarkerSegments));
-        if (maxCoefficientBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxCoefficientBytes));
-        if (maxBlocks <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxBlocks));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxProbeBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEncodedBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDecodedBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDecodedSamples);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxImagePixels);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFrames);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxImageDimension);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxComponents);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSamplingFactor);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxScans);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxRestartInterval);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxMarkerSegments);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCoefficientBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBlocks);
 
         MaxProbeBytes = maxProbeBytes;
         MaxEncodedBytes = maxEncodedBytes;

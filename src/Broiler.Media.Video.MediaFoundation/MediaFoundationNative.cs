@@ -49,12 +49,7 @@ internal static class MediaFoundationNative
     internal static extern void CoUninitialize();
 
     [DllImport("ole32.dll", ExactSpelling = true)]
-    internal static extern int CoCreateInstance(
-        ref Guid rclsid,
-        IntPtr pUnkOuter,
-        uint dwClsContext,
-        ref Guid riid,
-        out IntPtr ppv);
+    internal static extern int CoCreateInstance(ref Guid rclsid, IntPtr pUnkOuter, uint dwClsContext, ref Guid riid, out IntPtr ppv);
 
     internal static void ReleaseIUnknown(IntPtr value)
     {
@@ -85,9 +80,9 @@ internal sealed class MediaFoundationPlatformScope : IDisposable
 
         try
         {
-            MediaFoundationFaults.ThrowIfFailed(
-                MediaFoundationNative.MFStartup(MediaFoundationNative.MF_VERSION, MediaFoundationNative.MFSTARTUP_NOSOCKET),
-                "Media Foundation startup failed.");
+            int result = MediaFoundationNative.MFStartup(MediaFoundationNative.MF_VERSION, MediaFoundationNative.MFSTARTUP_NOSOCKET);
+            
+            MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation startup failed.");
             _mediaFoundationStarted = true;
         }
         catch
@@ -104,9 +99,11 @@ internal sealed class MediaFoundationPlatformScope : IDisposable
             return;
 
         if (_mediaFoundationStarted)
-            MediaFoundationNative.MFShutdown();
+            _ = MediaFoundationNative.MFShutdown();
+        
         if (_shouldUninitializeCom)
             MediaFoundationNative.CoUninitialize();
+        
         _disposed = true;
     }
 }
@@ -140,6 +137,7 @@ internal static class MediaFoundationFaults
         string suffix = name is null
             ? nativeFacility + " HRESULT " + formattedCode
             : nativeFacility + " HRESULT " + formattedCode + " (" + name + ")";
+        
         return message + " Native error: " + suffix + ".";
     }
 

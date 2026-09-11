@@ -1,6 +1,6 @@
 using System;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Constants shared by the baseline JPEG decoder and encoder: marker bytes, the

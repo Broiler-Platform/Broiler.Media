@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
 internal static class WebpEncoder
 {
@@ -24,10 +24,7 @@ internal static class WebpEncoder
 
         var chunks = new List<RiffChunk>
         {
-            new("VP8X", BuildVp8x(
-                sequence.Width,
-                sequence.Height,
-                (byte)(Vp8xAnimationFlag | (HasAlpha(sequence) ? Vp8xAlphaFlag : 0)))),
+            new("VP8X", BuildVp8x(sequence.Width,sequence.Height,(byte)(Vp8xAnimationFlag | (HasAlpha(sequence) ? Vp8xAlphaFlag : 0)))),
             new("ANIM", BuildAnim(sequence.LoopCount)),
         };
 
@@ -51,8 +48,10 @@ internal static class WebpEncoder
     {
         byte[] payload = new byte[10];
         payload[0] = flags;
+
         WriteUInt24(payload.AsSpan(4, 3), width - 1);
         WriteUInt24(payload.AsSpan(7, 3), height - 1);
+        
         return payload;
     }
 
@@ -67,29 +66,36 @@ internal static class WebpEncoder
     {
         using var output = new MemoryStream();
         Span<byte> header = stackalloc byte[16];
+        
         WriteUInt24(header.Slice(6, 3), width - 1);
         WriteUInt24(header.Slice(9, 3), height - 1);
         WriteUInt24(header.Slice(12, 3), DelayMilliseconds(frame));
+        
         header[15] = 0x02; // do not blend; every encoded frame covers the whole canvas.
         output.Write(header);
         WriteChunk(output, "VP8L", WebpLossless.Encode(frame.Pixels));
+        
         return output.ToArray();
     }
 
     private static byte[] WriteRiff(IReadOnlyList<RiffChunk> chunks)
     {
         using var body = new MemoryStream();
+        
         WriteAscii(body, "WEBP");
         foreach (RiffChunk chunk in chunks)
             WriteChunk(body, chunk.FourCc, chunk.Payload);
 
         byte[] bodyBytes = body.ToArray();
         using var output = new MemoryStream();
+        
         WriteAscii(output, "RIFF");
         Span<byte> size = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(size, checked((uint)bodyBytes.Length));
+        
         output.Write(size);
         output.Write(bodyBytes);
+        
         return output.ToArray();
     }
 
@@ -98,8 +104,10 @@ internal static class WebpEncoder
         WriteAscii(output, fourCc);
         Span<byte> size = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(size, checked((uint)payload.Length));
+        
         output.Write(size);
         output.Write(payload);
+        
         if ((payload.Length & 1) != 0)
             output.WriteByte(0);
     }

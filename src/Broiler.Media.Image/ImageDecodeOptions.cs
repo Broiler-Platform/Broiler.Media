@@ -1,15 +1,9 @@
 namespace Broiler.Media.Image;
 
-public sealed class ImageDecodeOptions
+public sealed class ImageDecodeOptions(MediaLimits? limits = null, bool preserveAnimation = true)
 {
-    public ImageDecodeOptions(MediaLimits? limits = null, bool preserveAnimation = true)
-    {
-        Limits = limits ?? MediaLimits.Default;
-        PreserveAnimation = preserveAnimation;
-    }
+    public MediaLimits Limits { get; } = limits ?? MediaLimits.Default;
 
-    public MediaLimits Limits { get; }
-
-    public bool PreserveAnimation { get; }
+    public bool PreserveAnimation { get; } = preserveAnimation;
 }
 

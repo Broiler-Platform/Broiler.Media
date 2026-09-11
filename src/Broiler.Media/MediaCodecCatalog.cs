@@ -16,8 +16,9 @@ public sealed class MediaCodecCatalog
     {
         ArgumentNullException.ThrowIfNull(codecs);
 
-        MediaCodec[] codecArray = codecs.ToArray();
+        MediaCodec[] codecArray = [.. codecs];
         HashSet<MediaCodecId> ids = [];
+
         foreach (MediaCodec codec in codecArray)
         {
             if (!ids.Add(codec.Id))
@@ -29,36 +30,34 @@ public sealed class MediaCodecCatalog
 
     public IReadOnlyList<MediaCodec> Codecs => _codecs;
 
-    public MediaCodec? FindById(MediaCodecId id) =>
-        _codecs.FirstOrDefault(codec => codec.Id == id);
+    public MediaCodec? FindById(MediaCodecId id) => _codecs.FirstOrDefault(codec => codec.Id == id);
 
-    public IReadOnlyList<MediaCodec> GetByKind(MediaKind kind) =>
-        Array.AsReadOnly(_codecs.Where(codec => codec.Kind == kind).ToArray());
+    public IReadOnlyList<MediaCodec> GetByKind(MediaKind kind) => Array.AsReadOnly(_codecs.Where(codec => codec.Kind == kind).ToArray());
 
-    public async ValueTask<MediaCodecMatch?> SelectAsync(
-        MediaKind kind,
-        MediaInput input,
-        MediaProbeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<MediaCodecMatch?> SelectAsync(MediaKind kind, MediaInput input,
+        MediaProbeOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
 
         MediaProbeOptions effectiveOptions = options ?? MediaProbeOptions.Default;
-        byte[] prefix = await ReadPrefixAsync(input.Stream, effectiveOptions.Limits.MaxProbeBytes, cancellationToken)
-            .ConfigureAwait(false);
+        byte[] prefix =
+            await ReadPrefixAsync(input.Stream, effectiveOptions.Limits.MaxProbeBytes, cancellationToken).ConfigureAwait(false);
         var request = new MediaProbeRequest(prefix, input.Hints, effectiveOptions.Limits);
 
         MediaCodecMatch? best = null;
+
         foreach (MediaCodec codec in _codecs)
         {
             if (codec.Kind != kind)
                 continue;
 
             cancellationToken.ThrowIfCancellationRequested();
+
             MediaProbeResult result = await codec.ProbeAsync(request, cancellationToken).ConfigureAwait(false);
             if (result.Kind != kind)
                 throw new InvalidOperationException($"Codec '{codec.Id}' returned a {result.Kind} probe for a {kind} request.");
+
             if (!result.IsMatch)
                 continue;
 
@@ -71,8 +70,7 @@ public sealed class MediaCodecCatalog
 
     private static async ValueTask<byte[]> ReadPrefixAsync(Stream stream, int maxBytes, CancellationToken cancellationToken)
     {
-        if (maxBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxBytes));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
 
         long? originalPosition = stream.CanSeek ? stream.Position : null;
         byte[] buffer = new byte[maxBytes];
@@ -82,8 +80,7 @@ public sealed class MediaCodecCatalog
         {
             while (total < maxBytes)
             {
-                int read = await stream.ReadAsync(buffer.AsMemory(total, maxBytes - total), cancellationToken)
-                    .ConfigureAwait(false);
+                int read = await stream.ReadAsync(buffer.AsMemory(total, maxBytes - total), cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                     break;
 

@@ -10,46 +10,26 @@ namespace Broiler.Media.Video.MediaFoundation;
 [SupportedOSPlatform("windows")]
 public sealed class MediaFoundationVideoCodec : VideoCodec
 {
-    public static MediaCodecDescriptor CodecDescriptor { get; } = new(
-        new MediaCodecId("broiler.video.mediafoundation.windows"),
-        "Broiler Windows Media Foundation video",
-        MediaKind.Video,
-        MediaCodecCapabilities.Decode | MediaCodecCapabilities.Streaming | MediaCodecCapabilities.DirectPresentation,
-        [
-            new MediaFormatDescriptor(
-                "MPEG-4 video",
-                ["video/mp4"],
-                [".mp4"]),
-        ]);
+    public static MediaCodecDescriptor CodecDescriptor { get; } = new(new MediaCodecId("broiler.video.mediafoundation.windows"), "Broiler Windows Media Foundation video",
+        MediaKind.Video, MediaCodecCapabilities.Decode | MediaCodecCapabilities.Streaming | MediaCodecCapabilities.DirectPresentation,
+        [new MediaFormatDescriptor("MPEG-4 video", ["video/mp4"], [".mp4"])]);
 
-    public MediaFoundationVideoCodec()
-        : base(CodecDescriptor)
-    {
-    }
+    public MediaFoundationVideoCodec() : base(CodecDescriptor) { }
 
-    public override ValueTask<MediaProbeResult> ProbeAsync(
-        MediaProbeRequest request,
-        CancellationToken cancellationToken = default)
+    public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (IsMp4Prefix(request.Prefix.Span) || IsMp4Hint(request.Hints))
         {
-            return ValueTask.FromResult(MediaProbeResult.Match(
-                MediaKind.Video,
-                MediaProbeConfidence.High,
-                "MPEG-4 video",
-                "video/mp4",
-                bytesConsumed: request.Prefix.Length >= 12 ? 12 : null));
+            return ValueTask.FromResult(MediaProbeResult.Match(MediaKind.Video, MediaProbeConfidence.High,
+                "MPEG-4 video", "video/mp4", bytesConsumed: request.Prefix.Length >= 12 ? 12 : null));
         }
 
         return ValueTask.FromResult(MediaProbeResult.NoMatch(MediaKind.Video));
     }
 
-    public override async ValueTask<VideoStreamInfo> GetInfoAsync(
-        MediaInput input,
-        VideoDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask<VideoStreamInfo> GetInfoAsync(MediaInput input, VideoDecodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
@@ -78,23 +58,19 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
                 MediaFoundationMediaEngineEventKind.ResourceLost or
                 MediaFoundationMediaEngineEventKind.StreamRenderingError)
             {
-                metadataReady.TrySetException(new MediaException(new MediaError(
-                    MediaErrorCode.NativeFailure,
-                    "Media Foundation failed while loading video metadata.",
-                    Id)));
+                MediaError error = new(MediaErrorCode.NativeFailure, "Media Foundation failed while loading video metadata.", Id);
+                metadataReady.TrySetException(new MediaException(error));
             }
         };
 
         engine.SetSource(sourceUri);
         engine.Load();
+
         return await metadataReady.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public override async ValueTask<IVideoSession> OpenSessionAsync(
-        MediaInput input,
-        IVideoOutput output,
-        VideoSessionOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask<IVideoSession> OpenSessionAsync(MediaInput input, IVideoOutput output,
+        VideoSessionOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(output);
@@ -102,12 +78,11 @@ public sealed class MediaFoundationVideoCodec : VideoCodec
 
         if (output is not IHwndVideoOutput target)
         {
-            throw new ArgumentException(
-                "Media Foundation video sessions require an IHwndVideoOutput presentation target.",
-                nameof(output));
+            throw new ArgumentException("Media Foundation video sessions require an IHwndVideoOutput presentation target.", nameof(output));
         }
 
         target.ThrowIfUsableTargetRequired();
+        
         string sourceUri = ResolveSourceUri(input.Hints);
         VideoSessionOptions effectiveOptions = options ?? new VideoSessionOptions();
         var platform = new MediaFoundationPlatformScope();

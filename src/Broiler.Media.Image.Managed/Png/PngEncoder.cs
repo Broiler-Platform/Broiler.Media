@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Png;
 
 /// <summary>
 /// Pure-managed PNG encoder. Writes a non-interlaced, 8-bit RGBA (colour type 6)
@@ -24,6 +24,7 @@ internal static class PngEncoder
 
         using var ms = new MemoryStream();
         ms.Write(Signature);
+
         WriteIhdr(ms, buffer.Width, buffer.Height);
         WriteChunk(ms, "IDAT", compressed);
         WriteChunk(ms, "IEND", ReadOnlySpan<byte>.Empty);
@@ -58,10 +59,10 @@ internal static class PngEncoder
         {
             ImageFrame frame = frames[i];
             ImageBuffer pixels = frame.Pixels;
+
             if (pixels.Width != width || pixels.Height != height)
                 throw new ArgumentException(
-                    $"APNG frame {i} is {pixels.Width}x{pixels.Height}, expected the canvas size {width}x{height}.",
-                    nameof(sequence));
+                    $"APNG frame {i} is {pixels.Width}x{pixels.Height}, expected the canvas size {width}x{height}.", nameof(sequence));
 
             WriteChunk(ms, "fcTL", BuildFctl(seq++, width, height, frame.DelayNumerator, frame.DelayDenominator));
 
@@ -74,6 +75,7 @@ internal static class PngEncoder
             {
                 byte[] fdat = new byte[4 + compressed.Length];
                 BinaryPrimitives.WriteUInt32BigEndian(fdat.AsSpan(0, 4), seq++);
+
                 compressed.CopyTo(fdat.AsSpan(4));
                 WriteChunk(ms, "fdAT", fdat);
             }
@@ -88,25 +90,30 @@ internal static class PngEncoder
         Span<byte> ihdr = stackalloc byte[13];
         BinaryPrimitives.WriteUInt32BigEndian(ihdr[..4], (uint)width);
         BinaryPrimitives.WriteUInt32BigEndian(ihdr.Slice(4, 4), (uint)height);
+
         ihdr[8] = 8;  // bit depth
         ihdr[9] = 6;  // colour type: RGBA
         ihdr[10] = 0; // compression
         ihdr[11] = 0; // filter method
         ihdr[12] = 0; // interlace: none
+
         WriteChunk(s, "IHDR", ihdr);
     }
 
     private static byte[] BuildFctl(uint sequenceNumber, int width, int height, int delayNum, int delayDen)
     {
         byte[] fctl = new byte[26];
+
         BinaryPrimitives.WriteUInt32BigEndian(fctl.AsSpan(0, 4), sequenceNumber);
         BinaryPrimitives.WriteUInt32BigEndian(fctl.AsSpan(4, 4), (uint)width);
         BinaryPrimitives.WriteUInt32BigEndian(fctl.AsSpan(8, 4), (uint)height);
         // x_offset and y_offset (12, 16) stay 0 — frames cover the whole canvas.
         BinaryPrimitives.WriteUInt16BigEndian(fctl.AsSpan(20, 2), (ushort)Math.Clamp(delayNum, 0, ushort.MaxValue));
         BinaryPrimitives.WriteUInt16BigEndian(fctl.AsSpan(22, 2), (ushort)Math.Clamp(delayDen, 0, ushort.MaxValue));
+
         fctl[24] = 0; // dispose_op: NONE
         fctl[25] = 0; // blend_op: SOURCE
+
         return fctl;
     }
 
@@ -155,9 +162,11 @@ internal static class PngEncoder
         }
 
         raw.Position = 0;
+
         using var output = new MemoryStream();
         using (var zlib = new ZLibStream(output, CompressionLevel.Optimal, leaveOpen: true))
             raw.CopyTo(zlib);
+
         return output.ToArray();
     }
 
@@ -208,6 +217,7 @@ internal static class PngEncoder
     {
         Span<byte> lengthAndType = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32BigEndian(lengthAndType[..4], (uint)data.Length);
+
         lengthAndType[4] = (byte)type[0];
         lengthAndType[5] = (byte)type[1];
         lengthAndType[6] = (byte)type[2];

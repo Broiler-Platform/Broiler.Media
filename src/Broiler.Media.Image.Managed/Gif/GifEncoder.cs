@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Gif;
 
 internal static class GifEncoder
 {
@@ -63,12 +63,7 @@ internal static class GifEncoder
         private readonly bool _useCube;
         private readonly int _cubeOffset;
 
-        private GifPalette(
-            byte[] colorTable,
-            bool hasTransparency,
-            Dictionary<int, byte>? exactMap,
-            bool useCube,
-            int cubeOffset)
+        private GifPalette(byte[] colorTable, bool hasTransparency, Dictionary<int, byte>? exactMap, bool useCube, int cubeOffset)
         {
             ColorTable = colorTable;
             HasTransparency = hasTransparency;
@@ -113,6 +108,7 @@ internal static class GifEncoder
         {
             byte[] indices = new byte[checked(buffer.Width * buffer.Height)];
             int output = 0;
+            
             for (int i = 0; i < buffer.Rgba.Length; i += 4)
             {
                 byte a = buffer.Rgba[i + 3];
@@ -167,13 +163,13 @@ internal static class GifEncoder
             }
 
             for (int r = 0; r < 6; r++)
-            for (int g = 0; g < 6; g++)
-            for (int b = 0; b < 6; b++)
-            {
-                palette.Add((byte)(r * 255 / 5));
-                palette.Add((byte)(g * 255 / 5));
-                palette.Add((byte)(b * 255 / 5));
-            }
+                for (int g = 0; g < 6; g++)
+                    for (int b = 0; b < 6; b++)
+                    {
+                        palette.Add((byte)(r * 255 / 5));
+                        palette.Add((byte)(g * 255 / 5));
+                        palette.Add((byte)(b * 255 / 5));
+                    }
 
             return new GifPalette(PadColorTable(palette), hasTransparency, exactMap: null, useCube: true, offset);
         }
@@ -190,8 +186,7 @@ internal static class GifEncoder
             return table;
         }
 
-        private static int CubeIndex(byte r, byte g, byte b) =>
-            Quantize6(r) * 36 + Quantize6(g) * 6 + Quantize6(b);
+        private static int CubeIndex(byte r, byte g, byte b) => Quantize6(r) * 36 + Quantize6(g) * 6 + Quantize6(b);
 
         private static int Quantize6(byte value) => (value * 5 + 127) / 255;
     }

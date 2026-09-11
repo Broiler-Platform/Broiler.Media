@@ -32,6 +32,7 @@ internal static class Crc32
     {
         foreach (byte b in data)
             crc = Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+
         return crc;
     }
 }

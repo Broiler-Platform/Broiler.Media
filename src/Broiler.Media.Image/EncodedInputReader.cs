@@ -18,10 +18,7 @@ namespace Broiler.Media.Image;
 /// </remarks>
 internal static class EncodedInputReader
 {
-    public static byte[] ReadAll(
-        MediaInput input,
-        ImageDecodeOptions? options,
-        CancellationToken cancellationToken)
+    public static byte[] ReadAll(MediaInput input, ImageDecodeOptions? options, CancellationToken cancellationToken)
     {
         long maxBytes = Budget(input, options);
         Stream stream = input.Stream;
@@ -47,10 +44,7 @@ internal static class EncodedInputReader
         return output.ToArray();
     }
 
-    public static async ValueTask<byte[]> ReadAllAsync(
-        MediaInput input,
-        ImageDecodeOptions? options,
-        CancellationToken cancellationToken)
+    public static async ValueTask<byte[]> ReadAllAsync(MediaInput input, ImageDecodeOptions? options, CancellationToken cancellationToken)
     {
         long maxBytes = Budget(input, options);
         Stream stream = input.Stream;
@@ -98,8 +92,6 @@ internal static class EncodedInputReader
         new byte[Math.Min(81920, checked((int)Math.Min(maxBytes, int.MaxValue)))];
 
     private static MediaException LimitExceeded(long maxBytes) =>
-        new(new MediaError(
-            MediaErrorCode.LimitExceeded,
-            $"Encoded image input exceeds the configured limit of {maxBytes} byte(s)."));
+        new(new MediaError(MediaErrorCode.LimitExceeded, $"Encoded image input exceeds the configured limit of {maxBytes} byte(s)."));
 }
 

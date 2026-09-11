@@ -19,6 +19,7 @@ public sealed class MediaPrefixReplayStream : Stream
         _tail = tail ?? throw new ArgumentNullException(nameof(tail));
         if (!tail.CanRead)
             throw new ArgumentException("The replay tail stream must be readable.", nameof(tail));
+        
         _leaveOpen = leaveOpen;
     }
 

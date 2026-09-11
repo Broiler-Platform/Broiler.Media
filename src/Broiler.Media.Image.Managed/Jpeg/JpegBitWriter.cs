@@ -1,19 +1,16 @@
 using System.IO;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Writes bits MSB-first into a JPEG entropy stream, performing <c>0xFF -&gt; 0xFF 0x00</c>
 /// byte-stuffing. Markers (restart, EOI) are written raw and must follow a byte-aligning
 /// <see cref="FlushToByte"/>.
 /// </summary>
-internal sealed class JpegBitWriter
+internal sealed class JpegBitWriter(Stream stream)
 {
-    private readonly Stream _stream;
     private int _accumulator;
     private int _bitCount;
-
-    public JpegBitWriter(Stream stream) => _stream = stream;
 
     /// <summary>Appends the low <paramref name="size"/> bits of <paramref name="code"/> (MSB first).</summary>
     public void WriteBits(int code, int size)
@@ -22,21 +19,21 @@ internal sealed class JpegBitWriter
         {
             _accumulator = (_accumulator << 1) | ((code >> i) & 1);
             _bitCount++;
+
             if (_bitCount == 8)
                 Emit();
         }
     }
 
     /// <summary>Writes a Huffman-coded symbol using the table's code and size.</summary>
-    public void WriteSymbol(JpegHuffmanTable table, int symbol) =>
-        WriteBits(table.CodeOf(symbol), table.SizeOf(symbol));
+    public void WriteSymbol(JpegHuffmanTable table, int symbol) => WriteBits(table.CodeOf(symbol), table.SizeOf(symbol));
 
     private void Emit()
     {
         byte b = (byte)_accumulator;
-        _stream.WriteByte(b);
+        stream.WriteByte(b);
         if (b == 0xFF)
-            _stream.WriteByte(0x00); // byte stuffing
+            stream.WriteByte(0x00); // byte stuffing
         _accumulator = 0;
         _bitCount = 0;
     }
@@ -51,6 +48,7 @@ internal sealed class JpegBitWriter
                 _accumulator = (_accumulator << 1) | 1;
                 _bitCount++;
             }
+
             Emit();
         }
     }

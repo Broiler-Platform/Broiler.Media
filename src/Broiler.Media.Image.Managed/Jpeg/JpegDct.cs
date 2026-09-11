@@ -1,6 +1,6 @@
 using System;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Separable 8x8 type-II DCT used by JPEG. Implemented with the orthonormal 1D

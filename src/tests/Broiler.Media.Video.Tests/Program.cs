@@ -79,45 +79,26 @@ internal static class Program
 
         await session.StopAsync().ConfigureAwait(false);
         Assert.Equal(VideoSessionState.Ended, session.State);
-        Assert.SequenceEqual(
-            new[]
-            {
+        Assert.SequenceEqual([
                 VideoSessionEventKind.Playing,
                 VideoSessionEventKind.Paused,
                 VideoSessionEventKind.Seeked,
                 VideoSessionEventKind.Ended,
-            },
-            events);
+            ], events);
     }
 
-    private sealed class FakeVideoCodec : VideoCodec
+    private sealed class FakeVideoCodec(MediaKind kind) : VideoCodec(new MediaCodecDescriptor(
+                new MediaCodecId($"fake.video.{kind}"), "Fake Video",
+                kind, MediaCodecCapabilities.Decode | MediaCodecCapabilities.DirectPresentation))
     {
-        public FakeVideoCodec(MediaKind kind)
-            : base(new MediaCodecDescriptor(
-                new MediaCodecId($"fake.video.{kind}"),
-                "Fake Video",
-                kind,
-                MediaCodecCapabilities.Decode | MediaCodecCapabilities.DirectPresentation))
-        {
-        }
+        public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(MediaProbeResult.NoMatch(MediaKind.Video));
 
-        public override ValueTask<MediaProbeResult> ProbeAsync(
-            MediaProbeRequest request,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(MediaProbeResult.NoMatch(MediaKind.Video));
+        public override ValueTask<VideoStreamInfo> GetInfoAsync(MediaInput input, VideoDecodeOptions? options = null,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(new VideoStreamInfo(640, 480, 640, 480));
 
-        public override ValueTask<VideoStreamInfo> GetInfoAsync(
-            MediaInput input,
-            VideoDecodeOptions? options = null,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(new VideoStreamInfo(640, 480, 640, 480));
-
-        public override ValueTask<IVideoSession> OpenSessionAsync(
-            MediaInput input,
-            IVideoOutput output,
-            VideoSessionOptions? options = null,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IVideoSession>(new FakeVideoSession(new VideoStreamInfo(640, 480, 640, 480)));
+        public override ValueTask<IVideoSession> OpenSessionAsync(MediaInput input, IVideoOutput output, VideoSessionOptions? options = null,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult<IVideoSession>(new FakeVideoSession(new VideoStreamInfo(640, 480, 640, 480)));
     }
 
     private sealed class FakeVideoSession(VideoStreamInfo streamInfo) : IVideoSession
@@ -149,19 +130,21 @@ internal static class Program
         public ValueTask SeekAsync(TimeSpan position, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (position < TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(position));
+            ArgumentOutOfRangeException.ThrowIfLessThan(position, TimeSpan.Zero);
 
             Position = position;
             Raise(VideoSessionEventKind.Seeked);
+            
             return ValueTask.CompletedTask;
         }
 
         public ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            
             State = VideoSessionState.Ended;
             Raise(VideoSessionEventKind.Ended);
+            
             return ValueTask.CompletedTask;
         }
 
@@ -169,6 +152,7 @@ internal static class Program
         {
             State = VideoSessionState.Disposed;
             Raise(VideoSessionEventKind.Disposed);
+            
             return ValueTask.CompletedTask;
         }
 

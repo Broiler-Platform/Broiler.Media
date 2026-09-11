@@ -11,22 +11,20 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     private readonly IMediaFoundationMediaEngine _engine;
     private readonly IHwndVideoOutput _target;
     private readonly IDisposable? _platformScope;
-    private readonly TaskCompletionSource<VideoStreamInfo> _metadataReady =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<VideoStreamInfo> _metadataReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _disposed;
     private VideoStreamInfo? _streamInfo;
 
-    internal MediaFoundationVideoSession(
-        IMediaFoundationMediaEngine engine,
-        IHwndVideoOutput target,
-        IDisposable? platformScope = null)
+    internal MediaFoundationVideoSession(IMediaFoundationMediaEngine engine, IHwndVideoOutput target, IDisposable? platformScope = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _target = target ?? throw new ArgumentNullException(nameof(target));
+
         _platformScope = platformScope;
         _target.ThrowIfUsableTargetRequired();
         _engine.EventReceived += OnEngineEventReceived;
         _target.TargetChanged += OnTargetChanged;
+
         State = VideoSessionState.Created;
     }
 
@@ -34,8 +32,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
 
     public VideoSessionState State { get; private set; }
 
-    public VideoStreamInfo StreamInfo =>
-        _streamInfo ?? throw new InvalidOperationException("Video stream metadata has not loaded yet.");
+    public VideoStreamInfo StreamInfo => _streamInfo ?? throw new InvalidOperationException("Video stream metadata has not loaded yet.");
 
     public TimeSpan Position
     {
@@ -48,14 +45,11 @@ public sealed class MediaFoundationVideoSession : IVideoSession
         }
     }
 
-    internal static async ValueTask<MediaFoundationVideoSession> OpenAsync(
-        IMediaFoundationMediaEngine engine,
-        IHwndVideoOutput target,
-        string sourceUri,
-        VideoSessionOptions options,
-        CancellationToken cancellationToken)
+    internal static async ValueTask<MediaFoundationVideoSession> OpenAsync(IMediaFoundationMediaEngine engine, 
+        IHwndVideoOutput target, string sourceUri, VideoSessionOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
+        
         if (string.IsNullOrWhiteSpace(sourceUri))
             throw new ArgumentException("A Media Foundation video session needs a source URI.", nameof(sourceUri));
 
@@ -77,19 +71,24 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     internal async ValueTask<VideoStreamInfo> LoadAsync(string sourceUri, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
+        
         cancellationToken.ThrowIfCancellationRequested();
         SetState(VideoSessionState.Loading, VideoSessionEventKind.Loading);
+        
         _engine.SetSource(sourceUri);
         _engine.Load();
+
         return await _metadataReady.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public ValueTask PlayAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        
         cancellationToken.ThrowIfCancellationRequested();
         _target.ThrowIfUsableTargetRequired();
         _engine.Play();
+        
         SetState(VideoSessionState.Playing, VideoSessionEventKind.Playing);
         return ValueTask.CompletedTask;
     }
@@ -97,8 +96,10 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     public ValueTask PauseAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+
         cancellationToken.ThrowIfCancellationRequested();
         _engine.Pause();
+        
         SetState(VideoSessionState.Paused, VideoSessionEventKind.Paused);
         return ValueTask.CompletedTask;
     }
@@ -106,11 +107,11 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     public ValueTask SeekAsync(TimeSpan position, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        if (position < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(position));
+        ArgumentOutOfRangeException.ThrowIfLessThan(position, TimeSpan.Zero);
 
         cancellationToken.ThrowIfCancellationRequested();
         _engine.Seek(position);
+
         Raise(VideoSessionEventKind.Seeked);
         return ValueTask.CompletedTask;
     }
@@ -119,8 +120,10 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     {
         ThrowIfDisposed();
         cancellationToken.ThrowIfCancellationRequested();
+        
         _engine.Pause();
         _engine.Seek(TimeSpan.Zero);
+        
         SetState(VideoSessionState.Ended, VideoSessionEventKind.Ended);
         await _target.CompleteAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -133,9 +136,11 @@ public sealed class MediaFoundationVideoSession : IVideoSession
         _disposed = true;
         _engine.EventReceived -= OnEngineEventReceived;
         _target.TargetChanged -= OnTargetChanged;
+
         _metadataReady.TrySetCanceled();
         _engine.Dispose();
         _platformScope?.Dispose();
+
         SetState(VideoSessionState.Disposed, VideoSessionEventKind.Disposed);
         await ValueTask.CompletedTask;
     }
@@ -202,6 +207,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
         VideoStreamInfo info = _engine.GetStreamInfo();
         _streamInfo = info;
         _metadataReady.TrySetResult(info);
+
         if (State == VideoSessionState.Loading || State == VideoSessionState.Created)
             SetState(VideoSessionState.Ready, VideoSessionEventKind.Ready);
     }
@@ -218,6 +224,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     {
         lock (_gate)
             State = state;
+
         Raise(kind);
     }
 
@@ -228,6 +235,7 @@ public sealed class MediaFoundationVideoSession : IVideoSession
     {
         if (_disposed || State == VideoSessionState.Disposed)
             throw new ObjectDisposedException(nameof(MediaFoundationVideoSession));
+        
         if (State == VideoSessionState.Failed)
             throw new MediaException(new MediaError(MediaErrorCode.OutputFailed, "The Media Foundation video session has failed."));
     }

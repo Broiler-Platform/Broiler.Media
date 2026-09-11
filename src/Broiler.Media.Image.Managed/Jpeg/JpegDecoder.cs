@@ -1,7 +1,7 @@
 using System;
 using System.Buffers.Binary;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Pure-managed JPEG decoder for both <b>baseline</b> (SOF0) and <b>progressive</b>
@@ -42,10 +42,8 @@ internal static class JpegDecoder
         public int Pred; // DC predictor (transient, per scan)
     }
 
-    public static ImageBuffer Decode(
-        ReadOnlySpan<byte> data,
-        JpegColorTransform transform = JpegColorTransform.YCbCr,
-        MediaLimits? limits = null)
+    public static ImageBuffer Decode(ReadOnlySpan<byte> data,
+        JpegColorTransform transform = JpegColorTransform.YCbCr, MediaLimits? limits = null)
     {
         if (!IsJpeg(data))
             throw new FormatException("Data does not start with a JPEG SOI marker.");
@@ -77,19 +75,21 @@ internal static class JpegDecoder
 
             if (marker == JpegTables.MarkerEoi)
                 break;
+
             if (marker == JpegTables.MarkerSoi || marker == 0xFF ||
                 marker is >= JpegTables.MarkerRst0 and <= JpegTables.MarkerRst7 || marker == 0x01)
                 continue; // standalone markers / padding without a payload
 
             if (pos + 2 > bytes.Length)
                 throw new FormatException("Truncated JPEG segment header.");
+
             int length = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(pos, 2));
             if (length < 2 || pos + length > bytes.Length)
                 throw new FormatException("Corrupt JPEG segment length.");
+
             if (++segments > limits.MaxMarkerSegments)
             {
-                throw Exceeded(
-                    "JPEG declares more than " + limits.MaxMarkerSegments + " marker segments.");
+                throw Exceeded("JPEG declares more than " + limits.MaxMarkerSegments + " marker segments.");
             }
 
             ReadOnlySpan<byte> segment = bytes.AsSpan(pos + 2, length - 2);
@@ -119,28 +119,34 @@ internal static class JpegDecoder
                     progressive = true;
                     break;
                 case 0xC3: // lossless
-                case 0xC5: case 0xC6: case 0xC7:
-                case 0xC9: case 0xCA: case 0xCB:
-                case 0xCD: case 0xCE: case 0xCF:
-                    throw new NotSupportedException(
-                        $"Unsupported JPEG frame type 0x{marker:X2} (only baseline and progressive Huffman).");
+                case 0xC5:
+                case 0xC6:
+                case 0xC7:
+                case 0xC9:
+                case 0xCA:
+                case 0xCB:
+                case 0xCD:
+                case 0xCE:
+                case 0xCF:
+                    throw new NotSupportedException($"Unsupported JPEG frame type 0x{marker:X2} (only baseline and progressive Huffman).");
                 case JpegTables.MarkerSos:
-                {
-                    if (components is null)
-                        throw new FormatException("JPEG SOS encountered before a frame header.");
-                    if (++scans > limits.MaxScans)
-                        throw Exceeded("JPEG declares more than " + limits.MaxScans + " scans.");
-                    Component[] scanComponents = ReadScanHeader(
-                        segment, components, dcTables, acTables, progressive,
-                        out int ss, out int se, out int ah, out int al);
+                    {
+                        if (components is null)
+                            throw new FormatException("JPEG SOS encountered before a frame header.");
 
-                    int scanDataStart = pos + length;
-                    DecodeScan(bytes, scanDataStart, components, scanComponents, dcTables, acTables,
-                        width, height, restartInterval, ss, se, ah, al);
+                        if (++scans > limits.MaxScans)
+                            throw Exceeded("JPEG declares more than " + limits.MaxScans + " scans.");
 
-                    pos = FindNextMarker(bytes, scanDataStart);
-                    continue; // pos already advanced past the entropy data
-                }
+                        Component[] scanComponents = ReadScanHeader(segment, components, progressive, 
+                            out int ss, out int se, out int ah, out int al);
+
+                        int scanDataStart = pos + length;
+                        DecodeScan(bytes, scanDataStart, components, scanComponents, dcTables, acTables, width, height,
+                            restartInterval, ss, se, ah, al);
+
+                        pos = FindNextMarker(bytes, scanDataStart);
+                        continue; // pos already advanced past the entropy data
+                    }
                 default:
                     break; // APPn, COM, and other ancillary segments are skipped
             }
@@ -151,17 +157,13 @@ internal static class JpegDecoder
         if (components is null)
             throw new FormatException("JPEG ended before a frame header was found.");
 
-        Reconstruct(components, quant, width, height);
+        Reconstruct(components, quant);
         return AssembleRgba(components, width, height, transform);
     }
 
     // ---- Geometry -------------------------------------------------------
 
-    private static void SetupComponents(
-        Component[] components,
-        int width,
-        int height,
-        MediaLimits limits)
+    private static void SetupComponents(Component[] components, int width, int height, MediaLimits limits)
     {
         // Dimensions first, and separately from the pixel count: the product is
         // what overflows, so a decoder that multiplies before checking has
@@ -169,14 +171,18 @@ internal static class JpegDecoder
         // count past int in the arithmetic below.
         if (width <= 0 || height <= 0)
             throw new FormatException("JPEG frame header declares an empty image.");
+
         if (width > limits.MaxImageDimension || height > limits.MaxImageDimension)
             throw Exceeded("JPEG frame is larger than " + limits.MaxImageDimension + " in one dimension.");
+
         if ((long)width * height > limits.MaxImagePixels)
             throw Exceeded("JPEG frame declares more pixels than the limit allows.");
+
         if (components.Length > limits.MaxComponents)
             throw Exceeded("JPEG frame declares more than " + limits.MaxComponents + " components.");
 
         int hMax = 0, vMax = 0;
+
         foreach (Component c in components)
         {
             if (c.H > limits.MaxSamplingFactor || c.V > limits.MaxSamplingFactor)
@@ -191,6 +197,7 @@ internal static class JpegDecoder
 
         long totalBlocks = 0;
         long coefficientBytes = 0;
+
         foreach (Component c in components)
         {
             c.AllocBlocksPerLine = mcusPerLine * c.H;
@@ -198,6 +205,7 @@ internal static class JpegDecoder
 
             int samplesPerLine = (width * c.H + hMax - 1) / hMax;
             int samplesPerColumn = (height * c.V + vMax - 1) / vMax;
+
             c.BlocksPerLine = (samplesPerLine + 7) / 8;
             c.BlocksPerColumn = (samplesPerColumn + 7) / 8;
 
@@ -218,15 +226,12 @@ internal static class JpegDecoder
     }
 
     /// <summary>A limit refusal, in the shape the rest of Media reports one.</summary>
-    private static MediaException Exceeded(string message) =>
-        new(new MediaError(MediaErrorCode.LimitExceeded, message));
+    private static MediaException Exceeded(string message) => new(new MediaError(MediaErrorCode.LimitExceeded, message));
 
     // ---- Scan decoding (baseline + progressive) -------------------------
 
-    private static void DecodeScan(
-        byte[] bytes, int scanStart, Component[] all, Component[] scan,
-        JpegHuffmanTable[] dc, JpegHuffmanTable[] ac, int width, int height,
-        int restartInterval, int ss, int se, int ah, int al)
+    private static void DecodeScan(byte[] bytes, int scanStart, Component[] all, Component[] scan,
+        JpegHuffmanTable[] dc, JpegHuffmanTable[] ac, int width, int height, int restartInterval, int ss, int se, int ah, int al)
     {
         int hMax = 0, vMax = 0;
         foreach (Component c in all)
@@ -447,7 +452,7 @@ internal static class JpegDecoder
     /// produced.
     /// </para>
     /// </remarks>
-    private static void Reconstruct(Component[] components, int[][] quant, int width, int height)
+    private static void Reconstruct(Component[] components, int[][] quant)
     {
         foreach (Component c in components)
         {
@@ -483,8 +488,7 @@ internal static class JpegDecoder
     /// wide component is far more work than one of a narrow chroma plane, and the split should
     /// follow the work rather than the row count.
     /// </summary>
-    private static int BlockRowsPerBand(int blocksPerLine) =>
-        Math.Max(1, MinimumPixelsPerBand / Math.Max(1, blocksPerLine * 64));
+    private static int BlockRowsPerBand(int blocksPerLine) => Math.Max(1, MinimumPixelsPerBand / Math.Max(1, blocksPerLine * 64));
 
     /// <summary>
     /// Pixels a band must be worth before a pass is split. Small JPEGs — thumbnails, sprites —
@@ -505,11 +509,7 @@ internal static class JpegDecoder
         }
     }
 
-    private static ImageBuffer AssembleRgba(
-        Component[] components,
-        int width,
-        int height,
-        JpegColorTransform transform)
+    private static ImageBuffer AssembleRgba(Component[] components, int width, int height, JpegColorTransform transform)
     {
         int hMax = 0, vMax = 0;
         foreach (Component c in components)
@@ -666,9 +666,11 @@ internal static class JpegDecoder
 
         height = BinaryPrimitives.ReadUInt16BigEndian(seg.Slice(1, 2));
         width = BinaryPrimitives.ReadUInt16BigEndian(seg.Slice(3, 2));
+
         int count = seg[5];
         if (count is not (1 or 3))
             throw new NotSupportedException($"Only 1- or 3-component JPEG is supported (got {count}).");
+
         if (width <= 0 || height <= 0)
             throw new FormatException("JPEG frame has non-positive dimensions.");
 
@@ -689,9 +691,8 @@ internal static class JpegDecoder
         return components;
     }
 
-    private static Component[] ReadScanHeader(
-        ReadOnlySpan<byte> seg, Component[] components, JpegHuffmanTable[] dc, JpegHuffmanTable[] ac,
-        bool progressive, out int ss, out int se, out int ah, out int al)
+    private static Component[] ReadScanHeader(ReadOnlySpan<byte> seg, Component[] components, bool progressive,
+        out int ss, out int se, out int ah, out int al)
     {
         int ns = seg[0];
         var scan = new Component[ns];
@@ -726,6 +727,7 @@ internal static class JpegDecoder
         foreach (Component c in components)
             if (c.Id == id)
                 return c;
+
         throw new FormatException($"JPEG scan references unknown component id {id}.");
     }
 
@@ -782,6 +784,7 @@ internal static class JpegDecoder
 
             if (marker == 0xFF || marker == 0x01 || marker is >= 0xD0 and <= 0xD8)
                 continue;
+
             if (marker == 0xD9 || marker == 0xDA)
                 return false; // end of image, or entropy data, before any frame
 

@@ -68,12 +68,9 @@ internal static class ImageDecodeParallelism
     private static int ReadConfiguredDegree()
     {
         string? configured = Environment.GetEnvironmentVariable(ThreadsEnvironmentVariable);
-        if (!string.IsNullOrWhiteSpace(configured) &&
-            int.TryParse(configured, out int threads) &&
-            threads > 0)
-        {
+
+        if (!string.IsNullOrWhiteSpace(configured) && int.TryParse(configured, out int threads) && threads > 0)
             return threads;
-        }
 
         return Environment.ProcessorCount;
     }
@@ -106,14 +103,11 @@ internal static class ImageDecodeParallelism
         // Ceiling division, so `threads` bands cover the range with the remainder spread over the
         // leading bands rather than piled onto a lone trailing one.
         int unitsPerBand = (total + threads - 1) / threads;
-        Parallel.For(
-            0,
-            threads,
-            new ParallelOptions { MaxDegreeOfParallelism = threads },
-            i =>
+        Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, i =>
             {
                 int start = fromInclusive + i * unitsPerBand;
                 int end = Math.Min(start + unitsPerBand, toExclusive);
+
                 if (start < end)
                     band(start, end);
             });

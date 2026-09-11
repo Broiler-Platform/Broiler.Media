@@ -1,15 +1,13 @@
 using System;
 using System.IO;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
-internal sealed class WebpBitWriter
+internal sealed class WebpBitWriter(MemoryStream stream)
 {
-    private readonly MemoryStream _stream;
+    private readonly MemoryStream _stream = stream ?? throw new ArgumentNullException(nameof(stream));
     private int _bitBuffer;
     private int _bitCount;
-
-    public WebpBitWriter(MemoryStream stream) => _stream = stream ?? throw new ArgumentNullException(nameof(stream));
 
     public void WriteBits(int value, int bitCount)
     {

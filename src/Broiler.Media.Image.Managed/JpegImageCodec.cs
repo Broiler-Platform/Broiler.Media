@@ -1,3 +1,4 @@
+using Broiler.Media.Image.Managed.Jpeg;
 using System;
 using System.IO;
 using System.Threading;
@@ -7,28 +8,16 @@ namespace Broiler.Media.Image.Managed;
 
 public sealed class JpegImageCodec : ImageCodec
 {
-    public static MediaCodecDescriptor CodecDescriptor { get; } = new(
-        new MediaCodecId("broiler.image.jpeg.managed"),
-        "Broiler managed JPEG",
-        MediaKind.Image,
-        MediaCodecCapabilities.Decode | MediaCodecCapabilities.Encode,
-        [
-            new MediaFormatDescriptor(
-                "JPEG",
-                ["image/jpeg"],
-                [".jpg", ".jpeg"]),
-        ]);
+    public static MediaCodecDescriptor CodecDescriptor { get; } = new(new MediaCodecId("broiler.image.jpeg.managed"), "Broiler managed JPEG",
+        MediaKind.Image, MediaCodecCapabilities.Decode | MediaCodecCapabilities.Encode,
+        [new MediaFormatDescriptor("JPEG", ["image/jpeg"], [".jpg", ".jpeg"])]);
 
-    public JpegImageCodec()
-        : base(CodecDescriptor)
-    {
-    }
+    public JpegImageCodec() : base(CodecDescriptor) { }
 
-    public override ValueTask<MediaProbeResult> ProbeAsync(
-        MediaProbeRequest request,
-        CancellationToken cancellationToken = default)
+    public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         MediaProbeResult result = JpegDecoder.IsJpeg(request.Prefix.Span)
             ? MediaProbeResult.Match(MediaKind.Image, MediaProbeConfidence.Certain, "JPEG", "image/jpeg", 2)
             : MediaProbeResult.NoMatch(MediaKind.Image);
@@ -41,19 +30,14 @@ public sealed class JpegImageCodec : ImageCodec
     /// frame's channels are to be read; a caller that has resolved an Adobe
     /// <c>APP14</c> declaration, or a container's own, passes what it found.
     /// </summary>
-    public ImageBuffer Decode(
-        ReadOnlySpan<byte> data,
-        JpegColorTransform transform = JpegColorTransform.YCbCr,
-        MediaLimits? limits = null) =>
+    public static ImageBuffer Decode(ReadOnlySpan<byte> data, JpegColorTransform transform = JpegColorTransform.YCbCr, MediaLimits? limits = null) =>
         JpegDecoder.Decode(data, transform, limits);
 
-    public byte[] Encode(ImageBuffer buffer, int quality = 100) => JpegEncoder.Encode(buffer, quality);
+    public static byte[] Encode(ImageBuffer buffer, int quality = 100) => JpegEncoder.Encode(buffer, quality);
 
     /// <summary>The CPU half; both public paths reach the image through this.</summary>
-    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options)
-    {
-        return ImageSequence.Static(Decode(data, JpegColorTransform.YCbCr, options.Limits));
-    }
+    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options) =>
+        ImageSequence.Static(Decode(data, JpegColorTransform.YCbCr, options.Limits));
 
     public override async ValueTask EncodeAsync(
         ImageSequence sequence,
@@ -77,7 +61,6 @@ public sealed class JpegImageCodec : ImageCodec
     }
 
     /// <summary>Reads what the JPEG header declares, decoding nothing.</summary>
-    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
-        JpegDecoder.TryInspect(data, out info);
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) => JpegDecoder.TryInspect(data, out info);
 }
 

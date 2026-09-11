@@ -30,24 +30,23 @@ namespace Broiler.Media.Image;
 /// </remarks>
 public sealed class ImageInfo
 {
-    public ImageInfo(
-        int width,
-        int height,
-        int components,
-        int bitDepth,
-        string formatName,
-        string mediaType)
+    public ImageInfo(int width, int height, int components, int bitDepth, string formatName, string mediaType)
     {
         if (width <= 0)
             throw new ArgumentOutOfRangeException(nameof(width), width, "An inspected image has a positive width.");
+        
         if (height <= 0)
             throw new ArgumentOutOfRangeException(nameof(height), height, "An inspected image has a positive height.");
+        
         if (components <= 0)
             throw new ArgumentOutOfRangeException(nameof(components), components, "An inspected image has at least one component.");
+        
         if (bitDepth <= 0)
             throw new ArgumentOutOfRangeException(nameof(bitDepth), bitDepth, "An inspected image has a positive bit depth.");
+        
         if (string.IsNullOrWhiteSpace(formatName))
             throw new ArgumentException("An inspected image names its format.", nameof(formatName));
+        
         if (string.IsNullOrWhiteSpace(mediaType))
             throw new ArgumentException("An inspected image names its media type.", nameof(mediaType));
 

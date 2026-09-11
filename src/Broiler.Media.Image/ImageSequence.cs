@@ -9,14 +9,11 @@ public sealed class ImageSequence
     public ImageSequence(IEnumerable<ImageFrame> frames, int width, int height, int loopCount)
     {
         ArgumentNullException.ThrowIfNull(frames);
-        if (width <= 0)
-            throw new ArgumentOutOfRangeException(nameof(width));
-        if (height <= 0)
-            throw new ArgumentOutOfRangeException(nameof(height));
-        if (loopCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(loopCount));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfNegative(loopCount);
 
-        ImageFrame[] frameArray = frames.ToArray();
+        ImageFrame[] frameArray = [.. frames];
         if (frameArray.Length == 0)
             throw new ArgumentException("An image sequence needs at least one frame.", nameof(frames));
 
@@ -86,10 +83,6 @@ public sealed class ImageSequence
     public static ImageSequence Static(ImageBuffer pixels)
     {
         ArgumentNullException.ThrowIfNull(pixels);
-        return new ImageSequence(
-            [new ImageFrame(pixels, 0, 100)],
-            pixels.Width,
-            pixels.Height,
-            loopCount: 1);
+        return new ImageSequence([new ImageFrame(pixels, 0, 100)], pixels.Width, pixels.Height, loopCount: 1);
     }
 }

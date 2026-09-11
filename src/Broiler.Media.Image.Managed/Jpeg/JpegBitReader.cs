@@ -1,6 +1,6 @@
 using System;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// Reads bits MSB-first from a JPEG entropy-coded segment. Handles the <c>0xFF 0x00</c>
@@ -28,6 +28,7 @@ internal sealed class JpegBitReader
     {
         if (_bitCount == 0 && !FillByte())
             return -1;
+        
         _bitCount--;
         return (_bitBuffer >> _bitCount) & 1;
     }
@@ -72,6 +73,7 @@ internal sealed class JpegBitReader
 
         _bitBuffer = b;
         _bitCount = 8;
+
         return true;
     }
 
@@ -94,11 +96,14 @@ internal sealed class JpegBitReader
                     _pos += 2;
                     return true;
                 }
+            
                 if (m != 0x00)
                     return false; // some other marker — restart sequence is broken
             }
+        
             _pos++;
         }
+
         return false;
     }
 }

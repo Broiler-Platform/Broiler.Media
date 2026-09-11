@@ -39,19 +39,13 @@ internal static class DecodePathTests
             return _inner.Read(buffer, offset, count);
         }
 
-        public override ValueTask<int> ReadAsync(
-            Memory<byte> buffer,
-            CancellationToken cancellationToken = default)
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             AsyncReads++;
             return _inner.ReadAsync(buffer, cancellationToken);
         }
 
-        public override Task<int> ReadAsync(
-            byte[] buffer,
-            int offset,
-            int count,
-            CancellationToken cancellationToken)
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             AsyncReads++;
             return _inner.ReadAsync(buffer, offset, count, cancellationToken);
@@ -81,8 +75,8 @@ internal static class DecodePathTests
     }
 
     /// <summary>A one-pixel PNG, small enough to state inline and real enough to decode.</summary>
-    private static byte[] Png() => Convert.FromBase64String(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+    private static byte[] Png() => 
+        Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
 
     private static PngImageCodec Codec() => new();
 
@@ -105,6 +99,7 @@ internal static class DecodePathTests
         // CPU decode, so anything else would mean one of them had its own.
         ReadOnlySpan<byte> left = sync.Frames[0].Pixels.Pixels.Span;
         ReadOnlySpan<byte> right = async.Frames[0].Pixels.Pixels.Span;
+
         Assert.True(left.SequenceEqual(right), "The two paths produced different pixels.");
     }
 
@@ -120,6 +115,7 @@ internal static class DecodePathTests
 
         Assert.True(stream.SyncReads > 0, "The sync path read synchronously.");
         Assert.Equal(0, stream.AsyncReads);
+
         return default;
     }
 

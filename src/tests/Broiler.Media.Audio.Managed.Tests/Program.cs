@@ -81,12 +81,7 @@ internal static class Program
 
     private static async ValueTask WaveInfoReportsMetadata()
     {
-        byte[] wave = BuildWave(
-            48_000,
-            2,
-            16,
-            PcmBytes(16, [0, 1000, -1000, 32767, -32768, 42]),
-            includeUnknownChunks: true);
+        byte[] wave = BuildWave(48_000, 2, 16, PcmBytes(16, [0, 1000, -1000, 32767, -32768, 42]), includeUnknownChunks: true);
 
         AudioStreamInfo info = await DecodeInfoAsync(wave).ConfigureAwait(false);
 
@@ -108,10 +103,7 @@ internal static class Program
         var output = new RecordingAudioOutput();
         var codec = new WaveAudioCodec();
 
-        await codec.DecodeAsync(
-            input,
-            output,
-            new AudioDecodeOptions(maxFramesPerBuffer: 2)).ConfigureAwait(false);
+        await codec.DecodeAsync(input, output, new AudioDecodeOptions(maxFramesPerBuffer: 2)).ConfigureAwait(false);
 
         Assert.True(output.Completed);
         Assert.Equal(3, output.Buffers.Count);
@@ -126,25 +118,15 @@ internal static class Program
 
     private static async ValueTask DecodeBitDepthsToS16()
     {
-        await AssertDecodedS16(
-            BuildWave(8_000, 1, 8, PcmBytes(8, [0, 128, 255])),
-            [-32768, 0, 32512]).ConfigureAwait(false);
-
-        await AssertDecodedS16(
-            BuildWave(8_000, 1, 24, PcmBytes(24, [-8388608, 0, 8388607])),
-            [-32768, 0, 32767]).ConfigureAwait(false);
-
-        await AssertDecodedS16(
-            BuildWave(8_000, 1, 32, PcmBytes(32, [int.MinValue, 0, int.MaxValue])),
-            [-32768, 0, 32767]).ConfigureAwait(false);
+        await AssertDecodedS16(BuildWave(8_000, 1, 8, PcmBytes(8, [0, 128, 255])), [-32768, 0, 32512]).ConfigureAwait(false);
+        await AssertDecodedS16(BuildWave(8_000, 1, 24, PcmBytes(24, [-8388608, 0, 8388607])), [-32768, 0, 32767]).ConfigureAwait(false);
+        await AssertDecodedS16(BuildWave(8_000, 1, 32, PcmBytes(32, [int.MinValue, 0, int.MaxValue])), [-32768, 0, 32767]).ConfigureAwait(false);
     }
 
     private static async ValueTask DecodeToFloat32()
     {
         byte[] wave = BuildWave(8_000, 1, 16, PcmBytes(16, [-32768, 0, 32767]));
-        var output = await DecodeAsync(
-            wave,
-            new AudioDecodeOptions(AudioSampleFormat.Float32Interleaved, maxFramesPerBuffer: 16)).ConfigureAwait(false);
+        var output = await DecodeAsync(wave, new AudioDecodeOptions(AudioSampleFormat.Float32Interleaved, maxFramesPerBuffer: 16)).ConfigureAwait(false);
 
         byte[] samples = ConcatSamples(output.Buffers);
         Assert.Near(-1f, BinaryPrimitives.ReadSingleLittleEndian(samples.AsSpan(0, 4)));
@@ -172,10 +154,7 @@ internal static class Program
         var output = new BoundedAudioOutput(capacity: 1);
         var codec = new WaveAudioCodec();
 
-        Task decode = codec.DecodeAsync(
-            input,
-            output,
-            new AudioDecodeOptions(maxFramesPerBuffer: 1)).AsTask();
+        Task decode = codec.DecodeAsync(input, output, new AudioDecodeOptions(maxFramesPerBuffer: 1)).AsTask();
 
         await output.Blocked.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
         long bytesReadWhileBlocked = stream.BytesRead;
@@ -221,7 +200,7 @@ internal static class Program
 
     private static async ValueTask DeclaredDataLimitFails()
     {
-        byte[] wave = BuildWave(8_000, 1, 16, ReadOnlySpan<byte>.Empty, declaredDataBytes: 64);
+        byte[] wave = BuildWave(8_000, 1, 16, [], declaredDataBytes: 64);
         var output = new RecordingAudioOutput();
         var options = new AudioDecodeOptions(limits: new MediaLimits(maxDecodedBytes: 16));
 
@@ -234,7 +213,7 @@ internal static class Program
 
     private static async ValueTask DecodedSampleLimitFails()
     {
-        byte[] wave = BuildWave(8_000, 2, 16, ReadOnlySpan<byte>.Empty, declaredDataBytes: 24);
+        byte[] wave = BuildWave(8_000, 2, 16, [], declaredDataBytes: 24);
         var output = new RecordingAudioOutput();
         var options = new AudioDecodeOptions(limits: new MediaLimits(maxDecodedSamples: 8));
 
@@ -272,10 +251,7 @@ internal static class Program
         return output;
     }
 
-    private static async ValueTask DecodeWithOutputAsync(
-        byte[] wave,
-        IAudioOutput output,
-        AudioDecodeOptions? options = null)
+    private static async ValueTask DecodeWithOutputAsync(byte[] wave, IAudioOutput output, AudioDecodeOptions? options = null)
     {
         using var input = new MediaInput(new MemoryStream(wave));
         await new WaveAudioCodec().DecodeAsync(input, output, options).ConfigureAwait(false);
@@ -292,13 +268,8 @@ internal static class Program
         Assert.SequenceEqual(expected, actual);
     }
 
-    private static byte[] BuildWave(
-        int sampleRate,
-        int channels,
-        int bitsPerSample,
-        ReadOnlySpan<byte> data,
-        bool includeUnknownChunks = false,
-        uint? declaredDataBytes = null)
+    private static byte[] BuildWave(int sampleRate, int channels, int bitsPerSample, ReadOnlySpan<byte> data, 
+        bool includeUnknownChunks = false, uint? declaredDataBytes = null)
     {
         using var stream = new MemoryStream();
         WriteFourCc(stream, "RIFF");
@@ -310,10 +281,12 @@ internal static class Program
         {
             WriteFourCc(stream, "JUNK");
             WriteUInt32(stream, 3);
+
             stream.WriteByte(0x11);
             stream.WriteByte(0x22);
             stream.WriteByte(0x33);
             stream.WriteByte(0);
+
             declaredChunkBytes += 8 + 4;
         }
 
@@ -329,23 +302,28 @@ internal static class Program
         WriteUInt32(stream, (uint)byteRate);
         WriteUInt16(stream, (ushort)blockAlign);
         WriteUInt16(stream, (ushort)bitsPerSample);
+
         declaredChunkBytes += 8 + 16;
 
         if (includeUnknownChunks)
         {
             WriteFourCc(stream, "LIST");
             WriteUInt32(stream, 4);
+
             stream.WriteByte((byte)'I');
             stream.WriteByte((byte)'N');
             stream.WriteByte((byte)'F');
             stream.WriteByte((byte)'O');
+
             declaredChunkBytes += 8 + 4;
         }
 
         uint dataSize = declaredDataBytes ?? checked((uint)data.Length);
+
         WriteFourCc(stream, "data");
         WriteUInt32(stream, dataSize);
         stream.Write(data);
+
         if ((data.Length & 1) != 0 && declaredDataBytes is null)
             stream.WriteByte(0);
 
@@ -359,6 +337,7 @@ internal static class Program
     {
         using var stream = new MemoryStream();
         Span<byte> scratch = stackalloc byte[4];
+
         foreach (int sample in samples)
         {
             switch (bitsPerSample)
@@ -554,14 +533,9 @@ internal static class Program
         }
     }
 
-    private sealed class NonSeekableReadStream : Stream
+    private sealed class NonSeekableReadStream(byte[] data) : Stream
     {
-        private readonly MemoryStream _inner;
-
-        public NonSeekableReadStream(byte[] data)
-        {
-            _inner = new MemoryStream(data);
-        }
+        private readonly MemoryStream _inner = new(data);
 
         public long BytesRead { get; private set; }
 

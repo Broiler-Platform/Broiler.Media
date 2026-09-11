@@ -4,16 +4,12 @@ namespace Broiler.Media;
 
 public sealed class MediaProbeResult
 {
-    private MediaProbeResult(
-        MediaKind kind,
-        MediaProbeConfidence confidence,
-        string? formatName,
-        string? mimeType,
-        long? bytesConsumed,
-        string? diagnostic)
+    private MediaProbeResult(MediaKind kind, MediaProbeConfidence confidence, string? formatName,
+        string? mimeType, long? bytesConsumed, string? diagnostic)
     {
         if (confidence is < MediaProbeConfidence.None or > MediaProbeConfidence.Certain)
             throw new ArgumentOutOfRangeException(nameof(confidence));
+
         if (bytesConsumed < 0)
             throw new ArgumentOutOfRangeException(nameof(bytesConsumed));
 
@@ -42,16 +38,12 @@ public sealed class MediaProbeResult
     public static MediaProbeResult NoMatch(MediaKind kind, string? diagnostic = null) =>
         new(kind, MediaProbeConfidence.None, null, null, null, diagnostic);
 
-    public static MediaProbeResult Match(
-        MediaKind kind,
-        MediaProbeConfidence confidence,
-        string formatName,
-        string? mimeType = null,
-        long? bytesConsumed = null,
-        string? diagnostic = null)
+    public static MediaProbeResult Match(MediaKind kind, MediaProbeConfidence confidence, string formatName, 
+        string? mimeType = null, long? bytesConsumed = null, string? diagnostic = null)
     {
         if (confidence == MediaProbeConfidence.None)
             throw new ArgumentException("Matched probe results need positive confidence.", nameof(confidence));
+        
         if (string.IsNullOrWhiteSpace(formatName))
             throw new ArgumentException("Matched probe results need a format name.", nameof(formatName));
 

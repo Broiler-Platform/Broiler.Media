@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Png;
 
 /// <summary>
 /// Pure-managed PNG decoder. Handles every PNG colour type (grayscale, RGB,
@@ -24,14 +24,16 @@ internal static class PngDecoder
     private static ReadOnlySpan<byte> Signature => [137, 80, 78, 71, 13, 10, 26, 10];
 
     /// <summary>True if <paramref name="data"/> starts with the 8-byte PNG signature.</summary>
-    public static bool IsPng(ReadOnlySpan<byte> data) =>
-        data.Length >= 8 && data[..8].SequenceEqual(Signature);
+    public static bool IsPng(ReadOnlySpan<byte> data) => data.Length >= 8 && data[..8].SequenceEqual(Signature);
 
     /// <summary>Decodes the PNG (or an APNG's default image) into a single RGBA buffer.</summary>
     public static ImageBuffer Decode(ReadOnlySpan<byte> data)
     {
         PngData png = Parse(data);
-        return new ImageBuffer(png.Width, png.Height, DecodeImageData(png.DefaultIdat, ImageContextFor(png, png.Width, png.Height), png.Interlace));
+        ImageContext imageContext = ImageContextFor(png, png.Width, png.Height);
+        byte[] decodedImageData = DecodeImageData(png.DefaultIdat, imageContext, png.Interlace);
+
+        return new ImageBuffer(png.Width, png.Height, decodedImageData);
     }
 
     /// <summary>
@@ -41,10 +43,12 @@ internal static class PngDecoder
     public static ImageSequence DecodeAnimation(ReadOnlySpan<byte> data)
     {
         PngData png = Parse(data);
+
         if (!png.IsAnimated || png.Frames.Count == 0)
-            return ImageSequence.Static(
-                new ImageBuffer(png.Width, png.Height,
-                    DecodeImageData(png.DefaultIdat, ImageContextFor(png, png.Width, png.Height), png.Interlace)));
+        {
+            byte[] decodedImageData = DecodeImageData(png.DefaultIdat, ImageContextFor(png, png.Width, png.Height), png.Interlace);
+            return ImageSequence.Static(new ImageBuffer(png.Width, png.Height, decodedImageData));
+        }
 
         return Composite(png);
     }
@@ -60,6 +64,7 @@ internal static class PngDecoder
         {
             int stride = (ctx.Width * bitsPerPixel + 7) / 8;
             byte[] raw = Inflate(idat, (long)(stride + 1) * ctx.Height);
+
             Unfilter(raw, 0, ctx.Height, stride, bpp);
             ExpandPass(raw, 0, rgba, ctx, ctx.Width, ctx.Height, stride, xStart: 0, yStart: 0, xStep: 1, yStep: 1);
         }
@@ -67,6 +72,7 @@ internal static class PngDecoder
         {
             DecodeAdam7(idat, rgba, ctx, bitsPerPixel, bpp);
         }
+
         return rgba;
     }
 
@@ -175,6 +181,7 @@ internal static class PngDecoder
 
         if (!seenIhdr)
             throw new FormatException("PNG is missing its IHDR chunk.");
+
         if (png.ColorType == 3 && png.Palette is null)
             throw new FormatException("Palette PNG is missing its PLTE chunk.");
 
@@ -185,20 +192,26 @@ internal static class PngDecoder
     {
         if (chunk.Length != 13)
             throw new FormatException("PNG IHDR chunk must be 13 bytes.");
+
         png.Width = checked((int)BinaryPrimitives.ReadUInt32BigEndian(chunk[..4]));
         png.Height = checked((int)BinaryPrimitives.ReadUInt32BigEndian(chunk.Slice(4, 4)));
         png.BitDepth = chunk[8];
         png.ColorType = chunk[9];
+
         int compression = chunk[10];
         int filterMethod = chunk[11];
+
         png.Interlace = chunk[12];
 
         if (png.Width <= 0 || png.Height <= 0)
             throw new FormatException("PNG image has non-positive dimensions.");
+
         if (compression != 0 || filterMethod != 0)
             throw new FormatException("PNG uses an unsupported compression or filter method.");
+
         if (png.Interlace is not (0 or 1))
             throw new FormatException($"PNG uses an unknown interlace method {png.Interlace}.");
+
         ValidateColorAndDepth(png.ColorType, png.BitDepth);
     }
 
@@ -232,6 +245,7 @@ internal static class PngDecoder
     {
         if (chunk.Length < 26)
             throw new FormatException("APNG fcTL chunk is too short.");
+
         return new ApngFrame
         {
             Width = checked((int)BinaryPrimitives.ReadUInt32BigEndian(chunk.Slice(4, 4))),
@@ -393,8 +407,10 @@ internal static class PngDecoder
             int h = (ctx.Height - Adam7YStart[p] + Adam7YStep[p] - 1) / Adam7YStep[p];
             if (w <= 0 || h <= 0)
                 continue;
+
             passW[p] = w;
             passH[p] = h;
+
             passStride[p] = (w * bitsPerPixel + 7) / 8;
             total += (long)(passStride[p] + 1) * h;
         }
@@ -406,9 +422,11 @@ internal static class PngDecoder
         {
             if (passW[p] == 0)
                 continue;
+
             Unfilter(raw, offset, passH[p], passStride[p], bpp);
             ExpandPass(raw, offset, rgba, ctx, passW[p], passH[p], passStride[p],
                 Adam7XStart[p], Adam7YStart[p], Adam7XStep[p], Adam7YStep[p]);
+
             offset += (passStride[p] + 1) * passH[p];
         }
     }
@@ -494,19 +512,13 @@ internal static class PngDecoder
     /// other's pixels by design.
     /// </para>
     /// </remarks>
-    private static void ExpandPass(
-        byte[] raw, int baseOffset, byte[] rgba, in ImageContext ctx,
-        int passWidth, int passHeight, int stride,
-        int xStart, int yStart, int xStep, int yStep)
+    private static void ExpandPass(byte[] raw, int baseOffset, byte[] rgba, in ImageContext ctx,
+        int passWidth, int passHeight, int stride, int xStart, int yStart, int xStep, int yStep)
     {
         int rowLen = stride + 1;
         ImageContext context = ctx; // `in` parameters cannot be captured by the band delegate.
 
-        ImageDecodeParallelism.For(
-            0,
-            passHeight,
-            RowsPerBand(passWidth),
-            (fromRow, toRow) =>
+        ImageDecodeParallelism.For(0, passHeight, RowsPerBand(passWidth), (fromRow, toRow) =>
             {
                 for (int j = fromRow; j < toRow; j++)
                 {
@@ -520,6 +532,7 @@ internal static class PngDecoder
 
                         int x = xStart + i * xStep;
                         int dst = (y * context.Width + x) * 4;
+
                         rgba[dst] = r;
                         rgba[dst + 1] = g;
                         rgba[dst + 2] = b;
@@ -533,8 +546,7 @@ internal static class PngDecoder
     /// Smallest number of rows worth giving a thread, expressed as a pixel budget so the answer
     /// tracks row width rather than a row count that means something different at 16px and 4096px.
     /// </summary>
-    private static int RowsPerBand(int passWidth) =>
-        Math.Max(1, MinimumPixelsPerBand / Math.Max(1, passWidth));
+    private static int RowsPerBand(int passWidth) => Math.Max(1, MinimumPixelsPerBand / Math.Max(1, passWidth));
 
     /// <summary>
     /// Pixels a band must be worth before the pass is split. Below roughly this much work the
@@ -543,8 +555,7 @@ internal static class PngDecoder
     /// </summary>
     private const int MinimumPixelsPerBand = 32 * 1024;
 
-    private static void ExtractPixel(
-        ref SampleReader reader, in ImageContext ctx, out byte r, out byte g, out byte b, out byte a)
+    private static void ExtractPixel(ref SampleReader reader, in ImageContext ctx, out byte r, out byte g, out byte b, out byte a)
     {
         int maxSample = ctx.MaxSample;
         a = 255;
@@ -552,52 +563,52 @@ internal static class PngDecoder
         switch (ctx.ColorType)
         {
             case 0: // grayscale
-            {
-                int s = reader.Next();
-                if (ctx.HaveTrnsColor && s == ctx.TrnsGray) a = 0;
-                byte v = Scale(s, maxSample);
-                r = g = b = v;
-                break;
-            }
+                {
+                    int s = reader.Next();
+                    if (ctx.HaveTrnsColor && s == ctx.TrnsGray) a = 0;
+                    byte v = Scale(s, maxSample);
+                    r = g = b = v;
+                    break;
+                }
             case 2: // RGB
-            {
-                int sr = reader.Next(), sg = reader.Next(), sb = reader.Next();
-                if (ctx.HaveTrnsColor && sr == ctx.TrnsR && sg == ctx.TrnsG && sb == ctx.TrnsB) a = 0;
-                r = Scale(sr, maxSample);
-                g = Scale(sg, maxSample);
-                b = Scale(sb, maxSample);
-                break;
-            }
+                {
+                    int sr = reader.Next(), sg = reader.Next(), sb = reader.Next();
+                    if (ctx.HaveTrnsColor && sr == ctx.TrnsR && sg == ctx.TrnsG && sb == ctx.TrnsB) a = 0;
+                    r = Scale(sr, maxSample);
+                    g = Scale(sg, maxSample);
+                    b = Scale(sb, maxSample);
+                    break;
+                }
             case 3: // palette
-            {
-                int idx = reader.Next();
-                int pbase = idx * 3;
-                if (ctx.Palette is null || pbase + 2 >= ctx.Palette.Length)
-                    throw new FormatException("PNG palette index out of range.");
-                r = ctx.Palette[pbase];
-                g = ctx.Palette[pbase + 1];
-                b = ctx.Palette[pbase + 2];
-                if (ctx.PaletteAlpha is not null && idx < ctx.PaletteAlpha.Length)
-                    a = ctx.PaletteAlpha[idx];
-                break;
-            }
+                {
+                    int idx = reader.Next();
+                    int pbase = idx * 3;
+                    if (ctx.Palette is null || pbase + 2 >= ctx.Palette.Length)
+                        throw new FormatException("PNG palette index out of range.");
+                    r = ctx.Palette[pbase];
+                    g = ctx.Palette[pbase + 1];
+                    b = ctx.Palette[pbase + 2];
+                    if (ctx.PaletteAlpha is not null && idx < ctx.PaletteAlpha.Length)
+                        a = ctx.PaletteAlpha[idx];
+                    break;
+                }
             case 4: // grayscale + alpha
-            {
-                int s = reader.Next(), sa = reader.Next();
-                byte v = Scale(s, maxSample);
-                r = g = b = v;
-                a = Scale(sa, maxSample);
-                break;
-            }
+                {
+                    int s = reader.Next(), sa = reader.Next();
+                    byte v = Scale(s, maxSample);
+                    r = g = b = v;
+                    a = Scale(sa, maxSample);
+                    break;
+                }
             default: // 6: RGBA
-            {
-                int sr = reader.Next(), sg = reader.Next(), sb = reader.Next(), sa = reader.Next();
-                r = Scale(sr, maxSample);
-                g = Scale(sg, maxSample);
-                b = Scale(sb, maxSample);
-                a = Scale(sa, maxSample);
-                break;
-            }
+                {
+                    int sr = reader.Next(), sg = reader.Next(), sb = reader.Next(), sa = reader.Next();
+                    r = Scale(sr, maxSample);
+                    g = Scale(sg, maxSample);
+                    b = Scale(sb, maxSample);
+                    a = Scale(sa, maxSample);
+                    break;
+                }
         }
     }
 
@@ -611,47 +622,36 @@ internal static class PngDecoder
     }
 
     /// <summary>Pulls successive samples from a scanline, handling sub-byte and 16-bit depths.</summary>
-    private ref struct SampleReader
+    private ref struct SampleReader(byte[] data, int start, int bitDepth)
     {
-        private readonly byte[] _data;
-        private readonly int _bitDepth;
-        private int _bytePos;
-        private int _bitPos; // bits already consumed in the current byte (MSB first)
-
-        public SampleReader(byte[] data, int start, int bitDepth)
-        {
-            _data = data;
-            _bitDepth = bitDepth;
-            _bytePos = start;
-            _bitPos = 0;
-        }
+        private int _bitPos = 0; // bits already consumed in the current byte (MSB first)
 
         public int Next()
         {
-            switch (_bitDepth)
+            switch (bitDepth)
             {
                 case 8:
-                    return _data[_bytePos++];
+                    return data[start++];
                 case 16:
-                {
-                    int hi = _data[_bytePos];
-                    int lo = _data[_bytePos + 1];
-                    _bytePos += 2;
-                    return (hi << 8) | lo;
-                }
-                default: // 1, 2, 4
-                {
-                    int shift = 8 - _bitPos - _bitDepth;
-                    int mask = (1 << _bitDepth) - 1;
-                    int value = (_data[_bytePos] >> shift) & mask;
-                    _bitPos += _bitDepth;
-                    if (_bitPos == 8)
                     {
-                        _bitPos = 0;
-                        _bytePos++;
+                        int hi = data[start];
+                        int lo = data[start + 1];
+                        start += 2;
+                        return (hi << 8) | lo;
                     }
-                    return value;
-                }
+                default: // 1, 2, 4
+                    {
+                        int shift = 8 - _bitPos - bitDepth;
+                        int mask = (1 << bitDepth) - 1;
+                        int value = (data[start] >> shift) & mask;
+                        _bitPos += bitDepth;
+                        if (_bitPos == 8)
+                        {
+                            _bitPos = 0;
+                            start++;
+                        }
+                        return value;
+                    }
             }
         }
     }
@@ -675,6 +675,7 @@ internal static class PngDecoder
             2 or 4 or 6 => bitDepth is 8 or 16,
             _ => false,
         };
+
         if (!ok)
             throw new FormatException($"PNG colour type {colorType} with bit depth {bitDepth} is invalid.");
     }
@@ -687,6 +688,7 @@ internal static class PngDecoder
         Span<char> chars = stackalloc char[type.Length];
         for (int i = 0; i < type.Length; i++)
             chars[i] = type[i] is >= 32 and < 127 ? (char)type[i] : '?';
+
         return new string(chars);
     }
 
@@ -699,14 +701,12 @@ internal static class PngDecoder
     public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
     {
         info = null;
+
         if (!IsPng(data) || data.Length < 8 + 8 + 13)
             return false;
 
-        if (BinaryPrimitives.ReadUInt32BigEndian(data.Slice(8, 4)) != 13 ||
-            !TypeIs(data.Slice(12, 4), "IHDR"))
-        {
+        if (BinaryPrimitives.ReadUInt32BigEndian(data.Slice(8, 4)) != 13 || !TypeIs(data.Slice(12, 4), "IHDR"))
             return false;
-        }
 
         ReadOnlySpan<byte> chunk = data.Slice(16, 13);
         uint width = BinaryPrimitives.ReadUInt32BigEndian(chunk[..4]);

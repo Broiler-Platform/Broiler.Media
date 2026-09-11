@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
 internal sealed class WebpHuffmanCode
 {
@@ -17,11 +17,11 @@ internal sealed class WebpHuffmanCode
 
     public static WebpHuffmanCode Read(ref WebpBitReader reader, int alphabetSize)
     {
-        if (alphabetSize <= 0)
-            throw new ArgumentOutOfRangeException(nameof(alphabetSize));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(alphabetSize);
 
         int[] codeLengths = new int[alphabetSize];
         bool simple = reader.ReadBits(1) != 0;
+       
         if (simple)
         {
             int numSymbols = reader.ReadBits(1) + 1;

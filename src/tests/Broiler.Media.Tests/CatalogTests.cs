@@ -123,36 +123,22 @@ internal static class CatalogTests
         return output.ToArray();
     }
 
-    private sealed class FakeCodec : MediaCodec
+    private sealed class FakeCodec(string id, MediaProbeConfidence confidence) : MediaCodec(new MediaCodecDescriptor(
+                new MediaCodecId(id), id, MediaKind.Image, MediaCodecCapabilities.Decode, [new MediaFormatDescriptor("fake")]))
     {
-        private readonly MediaProbeConfidence _confidence;
-
-        public FakeCodec(string id, MediaProbeConfidence confidence)
-            : base(new MediaCodecDescriptor(
-                new MediaCodecId(id),
-                id,
-                MediaKind.Image,
-                MediaCodecCapabilities.Decode,
-                [new MediaFormatDescriptor("fake")]))
-        {
-            _confidence = confidence;
-        }
-
         public int ProbeCount { get; private set; }
 
         public int LastPrefixLength { get; private set; }
 
-        public override ValueTask<MediaProbeResult> ProbeAsync(
-            MediaProbeRequest request,
-            CancellationToken cancellationToken = default)
+        public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ProbeCount++;
             LastPrefixLength = request.Prefix.Length;
 
-            MediaProbeResult result = _confidence == MediaProbeConfidence.None
+            MediaProbeResult result = confidence == MediaProbeConfidence.None
                 ? MediaProbeResult.NoMatch(MediaKind.Image)
-                : MediaProbeResult.Match(MediaKind.Image, _confidence, "fake");
+                : MediaProbeResult.Match(MediaKind.Image, confidence, "fake");
 
             return ValueTask.FromResult(result);
         }

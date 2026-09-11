@@ -4,14 +4,9 @@ namespace Broiler.Media.Video;
 
 public sealed class VideoSessionEvent : EventArgs
 {
-    public VideoSessionEvent(
-        VideoSessionEventKind kind,
-        VideoSessionState state,
-        TimeSpan position,
-        MediaError? error = null)
+    public VideoSessionEvent(VideoSessionEventKind kind, VideoSessionState state, TimeSpan position, MediaError? error = null)
     {
-        if (position < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(position));
+        ArgumentOutOfRangeException.ThrowIfLessThan(position, TimeSpan.Zero);
 
         Kind = kind;
         State = state;

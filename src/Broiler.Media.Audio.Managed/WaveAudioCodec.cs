@@ -8,26 +8,17 @@ namespace Broiler.Media.Audio.Managed;
 
 public sealed class WaveAudioCodec : AudioCodec
 {
-    public static MediaCodecDescriptor CodecDescriptor { get; } = new(
-        new MediaCodecId("broiler.audio.wave.managed"),
-        "Broiler managed RIFF/WAVE PCM",
-        MediaKind.Audio,
-        MediaCodecCapabilities.Decode | MediaCodecCapabilities.Streaming,
+    public static MediaCodecDescriptor CodecDescriptor { get; } = new(new MediaCodecId("broiler.audio.wave.managed"),
+        "Broiler managed RIFF/WAVE PCM", MediaKind.Audio, MediaCodecCapabilities.Decode | MediaCodecCapabilities.Streaming,
         [
-            new MediaFormatDescriptor(
-                "WAVE",
+            new MediaFormatDescriptor("WAVE",
                 ["audio/wav", "audio/wave", "audio/x-wav"],
                 [".wav", ".wave"]),
         ]);
 
-    public WaveAudioCodec()
-        : base(CodecDescriptor)
-    {
-    }
+    public WaveAudioCodec() : base(CodecDescriptor) { }
 
-    public override ValueTask<MediaProbeResult> ProbeAsync(
-        MediaProbeRequest request,
-        CancellationToken cancellationToken = default)
+    public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -41,26 +32,24 @@ public sealed class WaveAudioCodec : AudioCodec
         return ValueTask.FromResult(result);
     }
 
-    public override async ValueTask<AudioStreamInfo> GetInfoAsync(
-        MediaInput input,
-        AudioDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask<AudioStreamInfo> GetInfoAsync(MediaInput input,
+        AudioDecodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+
         AudioDecodeOptions effectiveOptions = options ?? new AudioDecodeOptions();
         var reader = new WaveReader(input.Stream, effectiveOptions.Limits);
         WaveDataChunk data = await reader.ReadToDataAsync(cancellationToken).ConfigureAwait(false);
+
         return data.ToStreamInfo();
     }
 
-    public override async ValueTask DecodeAsync(
-        MediaInput input,
-        IAudioOutput output,
-        AudioDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask DecodeAsync(MediaInput input, IAudioOutput output,
+        AudioDecodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(output);
+
         AudioDecodeOptions effectiveOptions = options ?? new AudioDecodeOptions();
         ValidateOutputFormat(effectiveOptions.OutputSampleFormat);
 
@@ -68,6 +57,7 @@ public sealed class WaveAudioCodec : AudioCodec
         {
             var reader = new WaveReader(input.Stream, effectiveOptions.Limits);
             WaveDataChunk data = await reader.ReadToDataAsync(cancellationToken).ConfigureAwait(false);
+
             await DecodeDataAsync(reader, data, output, effectiveOptions, cancellationToken).ConfigureAwait(false);
             await output.CompleteAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -88,12 +78,8 @@ public sealed class WaveAudioCodec : AudioCodec
         }
     }
 
-    private static async ValueTask DecodeDataAsync(
-        WaveReader reader,
-        WaveDataChunk data,
-        IAudioOutput output,
-        AudioDecodeOptions options,
-        CancellationToken cancellationToken)
+    private static async ValueTask DecodeDataAsync(WaveReader reader, WaveDataChunk data, IAudioOutput output,
+        AudioDecodeOptions options, CancellationToken cancellationToken)
     {
         int outputBytesPerSample = AudioBuffer.BytesPerSample(options.OutputSampleFormat);
         int outputBytesPerFrame = checked(data.Format.Channels * outputBytesPerSample);
@@ -114,14 +100,8 @@ public sealed class WaveAudioCodec : AudioCodec
             await reader.ReadExactlyAsync(source.AsMemory(0, sourceByteCount), "WAVE data", cancellationToken).ConfigureAwait(false);
 
             byte[] converted = ConvertSamples(source.AsSpan(0, sourceByteCount), data.Format, options.OutputSampleFormat, frameCount);
-            var buffer = new AudioBuffer(
-                converted,
-                options.OutputSampleFormat,
-                data.Format.SampleRate,
-                data.Format.Channels,
-                frameCount,
-                FramesToTime(frameIndex, data.Format.SampleRate),
-                FramesToTime(frameCount, data.Format.SampleRate));
+            var buffer = new AudioBuffer(converted, options.OutputSampleFormat, data.Format.SampleRate, data.Format.Channels, frameCount,
+                FramesToTime(frameIndex, data.Format.SampleRate), FramesToTime(frameCount, data.Format.SampleRate));
 
             await output.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
             frameIndex += frameCount;
@@ -129,11 +109,7 @@ public sealed class WaveAudioCodec : AudioCodec
         }
     }
 
-    private static byte[] ConvertSamples(
-        ReadOnlySpan<byte> source,
-        WaveFormat format,
-        AudioSampleFormat outputFormat,
-        int frameCount)
+    private static byte[] ConvertSamples(ReadOnlySpan<byte> source, WaveFormat format, AudioSampleFormat outputFormat, int frameCount)
     {
         int sampleCount = checked(frameCount * format.Channels);
         int outputBytesPerSample = AudioBuffer.BytesPerSample(outputFormat);
@@ -218,18 +194,10 @@ public sealed class WaveAudioCodec : AudioCodec
     private static MediaException Limit(string message, long? byteOffset = null) =>
         new(new MediaError(MediaErrorCode.LimitExceeded, message, CodecDescriptor.Id, byteOffset));
 
-    private sealed class WaveReader
+    private sealed class WaveReader(Stream stream, MediaLimits limits)
     {
-        private readonly Stream _stream;
-        private readonly MediaLimits _limits;
         private readonly byte[] _scratch = new byte[16];
         private long _offset;
-
-        public WaveReader(Stream stream, MediaLimits limits)
-        {
-            _stream = stream;
-            _limits = limits;
-        }
 
         public async ValueTask<WaveDataChunk> ReadToDataAsync(CancellationToken cancellationToken)
         {
@@ -239,7 +207,7 @@ public sealed class WaveAudioCodec : AudioCodec
                 throw Invalid("Input is not a RIFF/WAVE stream.", 0);
 
             uint riffSize = BinaryPrimitives.ReadUInt32LittleEndian(header[4..8]);
-            if (checked(riffSize + 8L) > _limits.MaxEncodedBytes)
+            if (checked(riffSize + 8L) > limits.MaxEncodedBytes)
                 throw Limit("RIFF payload exceeds the configured encoded-byte limit.", _offset);
 
             WaveFormat? format = null;
@@ -270,15 +238,12 @@ public sealed class WaveAudioCodec : AudioCodec
             throw Invalid("WAVE stream does not contain a data chunk.", _offset);
         }
 
-        public async ValueTask ReadExactlyAsync(
-            Memory<byte> buffer,
-            string context,
-            CancellationToken cancellationToken)
+        public async ValueTask ReadExactlyAsync(Memory<byte> buffer, string context, CancellationToken cancellationToken)
         {
             int total = 0;
             while (total < buffer.Length)
             {
-                int read = await _stream.ReadAsync(buffer[total..], cancellationToken).ConfigureAwait(false);
+                int read = await stream.ReadAsync(buffer[total..], cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                     throw Invalid($"Truncated {context}.", _offset);
 
@@ -294,7 +259,7 @@ public sealed class WaveAudioCodec : AudioCodec
             Memory<byte> header = _scratch.AsMemory(0, 8);
             while (total < 8)
             {
-                int read = await _stream.ReadAsync(header[total..], cancellationToken).ConfigureAwait(false);
+                int read = await stream.ReadAsync(header[total..], cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                 {
                     if (total == 0)
@@ -328,15 +293,19 @@ public sealed class WaveAudioCodec : AudioCodec
             long remaining = chunkSize - 16L;
             if (remaining > 0)
                 await SkipAsync(remaining, cancellationToken).ConfigureAwait(false);
+
             if ((chunkSize & 1) != 0)
                 await SkipAsync(1, cancellationToken).ConfigureAwait(false);
 
             if (formatTag != 1)
                 throw Unsupported($"Unsupported WAVE format tag {formatTag}.", _offset);
+
             if (channels == 0 || channels > 64)
                 throw Invalid("WAVE channel count is invalid.", _offset);
+
             if (sampleRate == 0 || sampleRate > int.MaxValue)
                 throw Invalid("WAVE sample rate is invalid.", _offset);
+
             if (bitsPerSample is not (8 or 16 or 24 or 32))
                 throw Unsupported($"Unsupported PCM bit depth {bitsPerSample}.", _offset);
 
@@ -346,32 +315,30 @@ public sealed class WaveAudioCodec : AudioCodec
                 throw Invalid("WAVE block alignment does not match channel count and bit depth.", _offset);
 
             long expectedByteRate = (long)sampleRate * blockAlign;
+
             if (expectedByteRate > uint.MaxValue)
                 throw Invalid("WAVE byte rate exceeds the supported range.", _offset);
+
             if (byteRate != expectedByteRate)
                 throw Invalid("WAVE byte rate does not match sample rate and block alignment.", _offset);
+
             if (byteRate > int.MaxValue)
                 throw Invalid("WAVE byte rate exceeds the supported range.", _offset);
 
-            return new WaveFormat(
-                (int)sampleRate,
-                channels,
-                bitsPerSample,
-                blockAlign,
-                (int)byteRate,
-                sourceBytesPerSample);
+            return new WaveFormat((int)sampleRate, channels, bitsPerSample, blockAlign, (int)byteRate, sourceBytesPerSample);
         }
 
         private WaveDataChunk CreateDataChunk(WaveFormat format, uint dataByteLength)
         {
             if (dataByteLength % format.BlockAlign != 0)
                 throw Invalid("WAVE data chunk contains a partial audio frame.", _offset - 8);
-            if (dataByteLength > _limits.MaxDecodedBytes)
+
+            if (dataByteLength > limits.MaxDecodedBytes)
                 throw Limit("WAVE data exceeds the configured decoded-byte limit.", _offset - 8);
 
             long totalFrames = dataByteLength / format.BlockAlign;
             long totalSamples = checked(totalFrames * format.Channels);
-            if (totalSamples > _limits.MaxDecodedSamples)
+            if (totalSamples > limits.MaxDecodedSamples)
                 throw Limit("WAVE data exceeds the configured decoded-sample limit.", _offset - 8);
 
             return new WaveDataChunk(format, dataByteLength, totalFrames);
@@ -381,16 +348,17 @@ public sealed class WaveAudioCodec : AudioCodec
         {
             if (byteCount < 0)
                 throw Invalid("WAVE chunk size overflowed.", _offset);
+
             if (byteCount == 0)
                 return;
 
-            if (_stream.CanSeek)
+            if (stream.CanSeek)
             {
-                long available = _stream.Length - _stream.Position;
+                long available = stream.Length - stream.Position;
                 if (available < byteCount)
                     throw Invalid("Truncated WAVE chunk payload.", _offset + Math.Max(available, 0));
 
-                _stream.Position += byteCount;
+                stream.Position += byteCount;
                 _offset += byteCount;
                 EnsureActualEncodedBytes();
                 return;
@@ -401,7 +369,7 @@ public sealed class WaveAudioCodec : AudioCodec
             while (remaining > 0)
             {
                 int requested = (int)Math.Min(discard.Length, remaining);
-                int read = await _stream.ReadAsync(discard.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
+                int read = await stream.ReadAsync(discard.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                     throw Invalid("Truncated WAVE chunk payload.", _offset);
 
@@ -413,24 +381,19 @@ public sealed class WaveAudioCodec : AudioCodec
 
         private void EnsureActualEncodedBytes()
         {
-            if (_offset > _limits.MaxEncodedBytes)
+            if (_offset > limits.MaxEncodedBytes)
                 throw Limit("WAVE input exceeds the configured encoded-byte limit.", _offset);
         }
 
         private void EnsureDeclaredEncodedBytes(long byteCount, string context)
         {
-            if (byteCount < 0 || _offset + byteCount > _limits.MaxEncodedBytes)
+            if (byteCount < 0 || _offset + byteCount > limits.MaxEncodedBytes)
                 throw Limit($"{context} exceeds the configured encoded-byte limit.", _offset);
         }
     }
 
-    private readonly struct WaveFormat(
-        int sampleRate,
-        int channels,
-        int bitsPerSample,
-        int blockAlign,
-        int byteRate,
-        int sourceBytesPerSample)
+    private readonly struct WaveFormat(int sampleRate, int channels, int bitsPerSample,
+        int blockAlign, int byteRate, int sourceBytesPerSample)
     {
         public int SampleRate { get; } = sampleRate;
 
@@ -463,14 +426,7 @@ public sealed class WaveAudioCodec : AudioCodec
         public long TotalFrames { get; } = totalFrames;
 
         public AudioStreamInfo ToStreamInfo() =>
-            new(
-                Format.SampleRate,
-                Format.Channels,
-                Format.SourceFormat,
-                FramesToTime(TotalFrames, Format.SampleRate),
-                TotalFrames,
-                Format.BitsPerSample,
-                Format.BlockAlign,
-                Format.ByteRate);
+            new(Format.SampleRate, Format.Channels, Format.SourceFormat, FramesToTime(TotalFrames, Format.SampleRate), 
+                TotalFrames, Format.BitsPerSample, Format.BlockAlign, Format.ByteRate);
     }
 }

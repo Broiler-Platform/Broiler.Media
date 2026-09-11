@@ -1,3 +1,4 @@
+using Broiler.Media.Image.Managed.Gif;
 using System;
 using System.IO;
 using System.Threading;
@@ -7,28 +8,16 @@ namespace Broiler.Media.Image.Managed;
 
 public sealed class GifImageCodec : ImageCodec
 {
-    public static MediaCodecDescriptor CodecDescriptor { get; } = new(
-        new MediaCodecId("broiler.image.gif.managed"),
-        "Broiler managed GIF",
-        MediaKind.Image,
-        MediaCodecCapabilities.Decode | MediaCodecCapabilities.Encode | MediaCodecCapabilities.Animation,
-        [
-            new MediaFormatDescriptor(
-                "GIF",
-                ["image/gif"],
-                [".gif"]),
-        ]);
+    public static MediaCodecDescriptor CodecDescriptor { get; } = new(new MediaCodecId("broiler.image.gif.managed"), "Broiler managed GIF",
+        MediaKind.Image, MediaCodecCapabilities.Decode | MediaCodecCapabilities.Encode | MediaCodecCapabilities.Animation,
+        [new MediaFormatDescriptor("GIF", ["image/gif"], [".gif"])]);
 
-    public GifImageCodec()
-        : base(CodecDescriptor)
-    {
-    }
+    public GifImageCodec() : base(CodecDescriptor) { }
 
-    public override ValueTask<MediaProbeResult> ProbeAsync(
-        MediaProbeRequest request,
-        CancellationToken cancellationToken = default)
+    public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         MediaProbeResult result = GifDecoder.IsGif(request.Prefix.Span)
             ? MediaProbeResult.Match(MediaKind.Image, MediaProbeConfidence.Certain, "GIF", "image/gif", 6)
             : MediaProbeResult.NoMatch(MediaKind.Image);
@@ -36,30 +25,24 @@ public sealed class GifImageCodec : ImageCodec
         return ValueTask.FromResult(result);
     }
 
-    public ImageBuffer Decode(ReadOnlySpan<byte> data) => GifDecoder.Decode(data);
+    public static ImageBuffer Decode(ReadOnlySpan<byte> data) => GifDecoder.Decode(data);
 
-    public ImageSequence DecodeAnimation(ReadOnlySpan<byte> data) => GifDecoder.DecodeAnimation(data);
+    public static ImageSequence DecodeAnimation(ReadOnlySpan<byte> data) => GifDecoder.DecodeAnimation(data);
 
-    public byte[] Encode(ImageBuffer buffer) => GifEncoder.Encode(buffer);
+    public static byte[] Encode(ImageBuffer buffer) => GifEncoder.Encode(buffer);
 
-    public byte[] EncodeAnimation(ImageSequence sequence) => GifEncoder.EncodeAnimation(sequence);
+    public static byte[] EncodeAnimation(ImageSequence sequence) => GifEncoder.EncodeAnimation(sequence);
 
     /// <summary>The CPU half; both public paths reach the image through this.</summary>
-    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options)
-    {
-        return options.PreserveAnimation
-            ? DecodeAnimation(data)
-            : ImageSequence.Static(Decode(data));
-    }
+    protected override ImageSequence DecodeCore(ReadOnlySpan<byte> data, ImageDecodeOptions options) =>
+        options.PreserveAnimation ? DecodeAnimation(data) : ImageSequence.Static(Decode(data));
 
-    public override async ValueTask EncodeAsync(
-        ImageSequence sequence,
-        Stream output,
-        ImageEncodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask EncodeAsync(ImageSequence sequence, Stream output,
+        ImageEncodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sequence);
         ArgumentNullException.ThrowIfNull(output);
+
         cancellationToken.ThrowIfCancellationRequested();
 
         ImageEncodeOptions effectiveOptions = options ?? new ImageEncodeOptions(ImageEncodeFormat.Gif);
@@ -71,7 +54,6 @@ public sealed class GifImageCodec : ImageCodec
     }
 
     /// <summary>Reads what the GIF header declares, decoding nothing.</summary>
-    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) =>
-        GifDecoder.TryInspect(data, out info);
+    public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) => GifDecoder.TryInspect(data, out info);
 }
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// A JPEG Huffman table built from a <c>BITS</c>/<c>HUFFVAL</c> specification
@@ -19,10 +19,7 @@ internal sealed class JpegHuffmanTable
     private readonly int[] _encodeCode = new int[256];
     private readonly int[] _encodeSize = new int[256];
 
-    private JpegHuffmanTable(byte[] values)
-    {
-        _values = values;
-    }
+    private JpegHuffmanTable(byte[] values) => _values = values;
 
     /// <param name="bits">16 entries; <c>bits[i]</c> is the count of codes of length <c>i+1</c>.</param>
     /// <param name="values">The symbols, ordered by increasing code length.</param>

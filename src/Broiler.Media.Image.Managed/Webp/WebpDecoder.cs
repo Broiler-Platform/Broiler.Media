@@ -2,35 +2,32 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Webp;
 
 internal static class WebpDecoder
 {
-    public static bool IsWebp(ReadOnlySpan<byte> data) =>
-        data.Length >= 12 &&
-        FourCcIs(data[..4], "RIFF") &&
-        FourCcIs(data.Slice(8, 4), "WEBP");
+    public static bool IsWebp(ReadOnlySpan<byte> data) => data.Length >= 12 &&
+        FourCcIs(data[..4], "RIFF") && FourCcIs(data.Slice(8, 4), "WEBP");
 
     public static ImageBuffer Decode(ReadOnlySpan<byte> data) => DecodeAnimation(data).FirstFrame;
 
     public static ImageSequence DecodeAnimation(ReadOnlySpan<byte> data)
     {
         WebpData webp = Parse(data);
+
         if (webp.Frames.Count == 0)
             throw new FormatException("WebP contains no image frames.");
+
         if (webp.Frames.Count == 1 && webp.Frames[0].X == 0 && webp.Frames[0].Y == 0)
             return ImageSequence.Static(webp.Frames[0].Pixels);
 
         byte[] canvas = new byte[checked(webp.Width * webp.Height * 4)];
         var frames = new List<ImageFrame>(webp.Frames.Count);
+
         foreach (WebpFrame frame in webp.Frames)
         {
-            if (frame.X < 0 || frame.Y < 0 ||
-                frame.X + frame.Pixels.Width > webp.Width ||
-                frame.Y + frame.Pixels.Height > webp.Height)
-            {
+            if (frame.X < 0 || frame.Y < 0 || frame.X + frame.Pixels.Width > webp.Width || frame.Y + frame.Pixels.Height > webp.Height)
                 throw new FormatException("WebP frame region lies outside the canvas.");
-            }
 
             DrawFrame(canvas, webp.Width, frame);
             frames.Add(new ImageFrame(new ImageBuffer(webp.Width, webp.Height, (byte[])canvas.Clone()), frame.DurationMs, 1000));
@@ -69,6 +66,7 @@ internal static class WebpDecoder
         int riffEnd = Math.Min(data.Length, declaredSize + 8);
         var webp = new WebpData();
         int offset = 12;
+
         while (offset + 8 <= riffEnd)
         {
             ReadOnlySpan<byte> fourCc = data.Slice(offset, 4);
@@ -143,6 +141,7 @@ internal static class WebpDecoder
 
         ImageBuffer? pixels = null;
         int offset = 16;
+
         while (offset + 8 <= payload.Length)
         {
             ReadOnlySpan<byte> fourCc = payload.Slice(offset, 4);
@@ -171,6 +170,7 @@ internal static class WebpDecoder
 
         if (pixels is null)
             throw new FormatException("WebP ANMF chunk is missing VP8L or VP8 frame data.");
+
         if (pixels.Width != width || pixels.Height != height)
             throw new FormatException("WebP ANMF dimensions do not match the frame dimensions.");
 
@@ -189,22 +189,22 @@ internal static class WebpDecoder
     {
         byte[] source = frame.Pixels.Rgba;
         for (int y = 0; y < frame.Pixels.Height; y++)
-        for (int x = 0; x < frame.Pixels.Width; x++)
-        {
-            int src = (y * frame.Pixels.Width + x) * 4;
-            int dst = ((frame.Y + y) * canvasWidth + frame.X + x) * 4;
-            if (!frame.Blend)
+            for (int x = 0; x < frame.Pixels.Width; x++)
             {
-                canvas[dst] = source[src];
-                canvas[dst + 1] = source[src + 1];
-                canvas[dst + 2] = source[src + 2];
-                canvas[dst + 3] = source[src + 3];
+                int src = (y * frame.Pixels.Width + x) * 4;
+                int dst = ((frame.Y + y) * canvasWidth + frame.X + x) * 4;
+                if (!frame.Blend)
+                {
+                    canvas[dst] = source[src];
+                    canvas[dst + 1] = source[src + 1];
+                    canvas[dst + 2] = source[src + 2];
+                    canvas[dst + 3] = source[src + 3];
+                }
+                else
+                {
+                    OverBlend(canvas, dst, source, src);
+                }
             }
-            else
-            {
-                OverBlend(canvas, dst, source, src);
-            }
-        }
     }
 
     private static void OverBlend(byte[] dst, int d, byte[] src, int s)
@@ -316,6 +316,5 @@ internal static class WebpDecoder
         return true;
     }
 
-    private static int ReadUInt24(ReadOnlySpan<byte> value) =>
-        value[0] | (value[1] << 8) | (value[2] << 16);
+    private static int ReadUInt24(ReadOnlySpan<byte> value) => value[0] | (value[1] << 8) | (value[2] << 16);
 }

@@ -17,10 +17,8 @@ internal static class PngFormatBuilder
     private static ReadOnlySpan<byte> Signature => [137, 80, 78, 71, 13, 10, 26, 10];
 
     /// <param name="rows">Each entry is one packed scanline (no filter byte), MSB-first.</param>
-    public static byte[] Build(
-        int width, int height, byte bitDepth, byte colorType,
-        IReadOnlyList<byte[]> rows, byte[]? palette = null, byte[]? trns = null,
-        byte interlace = 0)
+    public static byte[] Build(int width, int height, byte bitDepth, byte colorType,
+        IReadOnlyList<byte[]> rows, byte[]? palette = null, byte[]? trns = null, byte interlace = 0)
     {
         using var ms = new MemoryStream();
         ms.Write(Signature);
@@ -28,15 +26,18 @@ internal static class PngFormatBuilder
         Span<byte> ihdr = stackalloc byte[13];
         BinaryPrimitives.WriteUInt32BigEndian(ihdr[..4], (uint)width);
         BinaryPrimitives.WriteUInt32BigEndian(ihdr.Slice(4, 4), (uint)height);
+
         ihdr[8] = bitDepth;
         ihdr[9] = colorType;
         ihdr[10] = 0;
         ihdr[11] = 0;
         ihdr[12] = interlace;
+
         WriteChunk(ms, "IHDR", ihdr);
 
         if (palette is not null)
             WriteChunk(ms, "PLTE", palette);
+
         if (trns is not null)
             WriteChunk(ms, "tRNS", trns);
 
@@ -47,14 +48,16 @@ internal static class PngFormatBuilder
             rawStream.WriteByte(0);
             rawStream.Write(row, 0, row.Length);
         }
+
         rawStream.Position = 0;
 
         using var compressed = new MemoryStream();
         using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
             rawStream.CopyTo(zlib);
-        WriteChunk(ms, "IDAT", compressed.ToArray());
 
-        WriteChunk(ms, "IEND", ReadOnlySpan<byte>.Empty);
+        WriteChunk(ms, "IDAT", compressed.ToArray());
+        WriteChunk(ms, "IEND", []);
+
         return ms.ToArray();
     }
 
@@ -77,9 +80,11 @@ internal static class PngFormatBuilder
             int ph = (height - yStart[p] + yStep[p] - 1) / yStep[p];
             if (pw <= 0 || ph <= 0)
                 continue;
+
             for (int j = 0; j < ph; j++)
             {
                 rawStream.WriteByte(0); // filter: none
+
                 int y = yStart[p] + j * yStep[p];
                 for (int i = 0; i < pw; i++)
                 {
@@ -95,26 +100,28 @@ internal static class PngFormatBuilder
         Span<byte> ihdr = stackalloc byte[13];
         BinaryPrimitives.WriteUInt32BigEndian(ihdr[..4], (uint)width);
         BinaryPrimitives.WriteUInt32BigEndian(ihdr.Slice(4, 4), (uint)height);
+
         ihdr[8] = 8;  // bit depth
         ihdr[9] = 6;  // colour type: RGBA
         ihdr[10] = 0;
         ihdr[11] = 0;
         ihdr[12] = 1; // Adam7 interlace
+
         WriteChunk(ms, "IHDR", ihdr);
 
         rawStream.Position = 0;
+
         using var compressed = new MemoryStream();
         using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
             rawStream.CopyTo(zlib);
-        WriteChunk(ms, "IDAT", compressed.ToArray());
 
-        WriteChunk(ms, "IEND", ReadOnlySpan<byte>.Empty);
+        WriteChunk(ms, "IDAT", compressed.ToArray());
+        WriteChunk(ms, "IEND", []);
         return ms.ToArray();
     }
 
     /// <summary>One frame for <see cref="BuildApng"/>: an 8-bit RGBA sub-image plus its fcTL fields.</summary>
-    public sealed record ApngFrameSpec(
-        int Width, int Height, int XOffset, int YOffset,
+    public sealed record ApngFrameSpec(int Width, int Height, int XOffset, int YOffset, 
         int DelayNum, int DelayDen, byte DisposeOp, byte BlendOp, byte[] Rgba);
 
     /// <summary>
@@ -130,11 +137,13 @@ internal static class PngFormatBuilder
         Span<byte> ihdr = stackalloc byte[13];
         BinaryPrimitives.WriteUInt32BigEndian(ihdr[..4], (uint)canvasWidth);
         BinaryPrimitives.WriteUInt32BigEndian(ihdr.Slice(4, 4), (uint)canvasHeight);
+
         ihdr[8] = 8;  // bit depth
         ihdr[9] = 6;  // colour type: RGBA
         ihdr[10] = 0;
         ihdr[11] = 0;
         ihdr[12] = 0; // not interlaced
+
         WriteChunk(ms, "IHDR", ihdr);
 
         Span<byte> actl = stackalloc byte[8];
@@ -155,11 +164,14 @@ internal static class PngFormatBuilder
             BinaryPrimitives.WriteUInt32BigEndian(fctl.AsSpan(16, 4), (uint)f.YOffset);
             BinaryPrimitives.WriteUInt16BigEndian(fctl.AsSpan(20, 2), (ushort)f.DelayNum);
             BinaryPrimitives.WriteUInt16BigEndian(fctl.AsSpan(22, 2), (ushort)f.DelayDen);
+
             fctl[24] = f.DisposeOp;
             fctl[25] = f.BlendOp;
+
             WriteChunk(ms, "fcTL", fctl);
 
             byte[] imageData = CompressFrame(f.Rgba, f.Width, f.Height);
+
             if (i == 0)
             {
                 WriteChunk(ms, "IDAT", imageData);
@@ -173,7 +185,7 @@ internal static class PngFormatBuilder
             }
         }
 
-        WriteChunk(ms, "IEND", ReadOnlySpan<byte>.Empty);
+        WriteChunk(ms, "IEND", []);
         return ms.ToArray();
     }
 
@@ -185,11 +197,13 @@ internal static class PngFormatBuilder
             raw.WriteByte(0); // filter: none
             raw.Write(rgba, y * width * 4, width * 4);
         }
+
         raw.Position = 0;
 
         using var compressed = new MemoryStream();
         using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
             raw.CopyTo(zlib);
+
         return compressed.ToArray();
     }
 

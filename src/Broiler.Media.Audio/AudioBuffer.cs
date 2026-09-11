@@ -4,25 +4,14 @@ namespace Broiler.Media.Audio;
 
 public sealed class AudioBuffer
 {
-    public AudioBuffer(
-        ReadOnlyMemory<byte> samples,
-        AudioSampleFormat sampleFormat,
-        int sampleRate,
-        int channels,
-        int frameCount,
-        TimeSpan timestamp,
-        TimeSpan duration)
+    public AudioBuffer(ReadOnlyMemory<byte> samples, AudioSampleFormat sampleFormat, int sampleRate, 
+        int channels, int frameCount, TimeSpan timestamp, TimeSpan duration)
     {
-        if (sampleRate <= 0)
-            throw new ArgumentOutOfRangeException(nameof(sampleRate));
-        if (channels <= 0)
-            throw new ArgumentOutOfRangeException(nameof(channels));
-        if (frameCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(frameCount));
-        if (timestamp < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(timestamp));
-        if (duration < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(duration));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sampleRate);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(channels);
+        ArgumentOutOfRangeException.ThrowIfNegative(frameCount);
+        ArgumentOutOfRangeException.ThrowIfLessThan(timestamp, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThan(duration, TimeSpan.Zero);
 
         int minimumLength = checked(frameCount * channels * BytesPerSample(sampleFormat));
         if (samples.Length < minimumLength)

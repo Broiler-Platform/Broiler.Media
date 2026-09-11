@@ -8,6 +8,7 @@ public sealed class MediaCodecMatch
     {
         Codec = codec ?? throw new ArgumentNullException(nameof(codec));
         Result = result ?? throw new ArgumentNullException(nameof(result));
+        
         if (!result.IsMatch)
             throw new ArgumentException("A codec match requires a positive probe result.", nameof(result));
     }

@@ -4,25 +4,17 @@ namespace Broiler.Media.Video;
 
 public sealed class VideoStreamInfo
 {
-    public VideoStreamInfo(
-        int codedWidth,
-        int codedHeight,
-        int displayWidth,
-        int displayHeight,
-        TimeSpan? duration = null,
-        double? frameRateHint = null,
-        int rotationDegrees = 0)
+    public VideoStreamInfo(int codedWidth, int codedHeight, int displayWidth, int displayHeight, 
+        TimeSpan? duration = null, double? frameRateHint = null, int rotationDegrees = 0)
     {
-        if (codedWidth <= 0)
-            throw new ArgumentOutOfRangeException(nameof(codedWidth));
-        if (codedHeight <= 0)
-            throw new ArgumentOutOfRangeException(nameof(codedHeight));
-        if (displayWidth <= 0)
-            throw new ArgumentOutOfRangeException(nameof(displayWidth));
-        if (displayHeight <= 0)
-            throw new ArgumentOutOfRangeException(nameof(displayHeight));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(codedWidth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(codedHeight);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(displayWidth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(displayHeight);
+
         if (duration < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(duration));
+
         if (frameRateHint <= 0)
             throw new ArgumentOutOfRangeException(nameof(frameRateHint));
 

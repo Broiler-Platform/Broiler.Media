@@ -37,16 +37,12 @@ internal static class ArchitectureTests
         var expected = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["Broiler.Media/Broiler.Media.csproj"] = [],
-            ["Broiler.Media.Audio/Broiler.Media.Audio.csproj"] =
-                ["../Broiler.Media/Broiler.Media.csproj"],
-            ["Broiler.Media.Audio.Managed/Broiler.Media.Audio.Managed.csproj"] =
-                ["../Broiler.Media.Audio/Broiler.Media.Audio.csproj"],
-            ["Broiler.Media.Video/Broiler.Media.Video.csproj"] =
-                ["../Broiler.Media/Broiler.Media.csproj"],
+            ["Broiler.Media.Audio/Broiler.Media.Audio.csproj"] = ["../Broiler.Media/Broiler.Media.csproj"],
+            ["Broiler.Media.Audio.Managed/Broiler.Media.Audio.Managed.csproj"] = ["../Broiler.Media.Audio/Broiler.Media.Audio.csproj"],
+            ["Broiler.Media.Video/Broiler.Media.Video.csproj"] = ["../Broiler.Media/Broiler.Media.csproj"],
             // §6.6: the Windows presentation-target contract the Media Foundation backend
             // borrows. Contracts only — it must never reference an implementation.
-            ["Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj"] =
-                ["../Broiler.Media.Video/Broiler.Media.Video.csproj"],
+            ["Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj"] = ["../Broiler.Media.Video/Broiler.Media.Video.csproj"],
             // §6.6: the Media Foundation backend borrows an HWND presentation target through
             // the IHwndVideoOutput contract above. It used to reference
             // Broiler.Graphics.Windows for the concrete target type, which closed a
@@ -56,10 +52,8 @@ internal static class ArchitectureTests
                     "../Broiler.Media.Video/Broiler.Media.Video.csproj",
                     "../Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj",
                 ],
-            ["Broiler.Media.Image/Broiler.Media.Image.csproj"] =
-                ["../Broiler.Media/Broiler.Media.csproj"],
-            ["Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj"] =
-                ["../Broiler.Media.Image/Broiler.Media.Image.csproj"],
+            ["Broiler.Media.Image/Broiler.Media.Image.csproj"] = ["../Broiler.Media/Broiler.Media.csproj"],
+            ["Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj"] = ["../Broiler.Media.Image/Broiler.Media.Image.csproj"],
             // The meta-package carries the cross-platform stack only; platform-native
             // backends (MediaFoundation) stay separate packages.
             ["Broiler.Media.All/Broiler.Media.All.csproj"] =
@@ -76,14 +70,14 @@ internal static class ArchitectureTests
         foreach ((string relativeProject, string[] expectedReferences) in expected)
         {
             string projectPath = Path.Combine(root, relativeProject.Replace('/', Path.DirectorySeparatorChar));
-            string[] actual = ReadProjectReferences(projectPath)
+            
+            string[] actual = [.. ReadProjectReferences(projectPath)
                 .Select(NormalizeProjectReference)
-                .Order(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            string[] wanted = expectedReferences
+                .Order(StringComparer.OrdinalIgnoreCase)];
+            
+            string[] wanted = [.. expectedReferences
                 .Select(NormalizeProjectReference)
-                .Order(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+                .Order(StringComparer.OrdinalIgnoreCase)];
 
             Assert.SequenceEqual(wanted, actual, relativeProject);
         }
@@ -148,8 +142,7 @@ internal static class ArchitectureTests
         if (File.Exists(modules))
             Assert.DoesNotContain("Broiler.Graphics", File.ReadAllText(modules), modules);
 
-        Assert.False(
-            Directory.Exists(Path.Combine(componentRoot, "Broiler.Graphics")),
+        Assert.False(Directory.Exists(Path.Combine(componentRoot, "Broiler.Graphics")),
             "Broiler.Media must not carry a Broiler.Graphics checkout.");
 
         return ValueTask.CompletedTask;
@@ -205,12 +198,11 @@ internal static class ArchitectureTests
     private static string[] ReadProjectReferences(string projectPath)
     {
         XDocument document = XDocument.Load(projectPath);
-        return document
+        return [.. document
             .Descendants("ProjectReference")
             .Select(element => element.Attribute("Include")?.Value)
             .Where(value => value is not null)
-            .Cast<string>()
-            .ToArray();
+            .Cast<string>()];
     }
 
     private static string NormalizeProjectReference(string reference) =>

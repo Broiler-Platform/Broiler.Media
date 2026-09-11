@@ -7,8 +7,7 @@ namespace Broiler.Media.Image;
 
 public abstract class ImageCodec : MediaCodec
 {
-    protected ImageCodec(MediaCodecDescriptor descriptor)
-        : base(descriptor)
+    protected ImageCodec(MediaCodecDescriptor descriptor) : base(descriptor)
     {
         if (descriptor.Kind != MediaKind.Image)
             throw new ArgumentException("Image codecs must use MediaKind.Image descriptors.", nameof(descriptor));
@@ -43,19 +42,14 @@ public abstract class ImageCodec : MediaCodec
     /// async path, because blocking on an async read is what deadlocks where
     /// continuations run on one thread.
     /// </remarks>
-    public ImageSequence Decode(
-        MediaInput input,
-        ImageDecodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public ImageSequence Decode(MediaInput input, ImageDecodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new ImageDecodeOptions();
         return DecodeCore(EncodedInputReader.ReadAll(input, options, cancellationToken), options);
     }
 
     /// <summary>Reads asynchronously, then decodes on the calling thread.</summary>
-    public virtual async ValueTask<ImageSequence> DecodeAsync(
-        MediaInput input,
-        ImageDecodeOptions? options = null,
+    public virtual async ValueTask<ImageSequence> DecodeAsync(MediaInput input, ImageDecodeOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         options ??= new ImageDecodeOptions();
@@ -94,9 +88,7 @@ public abstract class ImageCodec : MediaCodec
     /// <see cref="TryInspect(ReadOnlySpan{byte}, out ImageInfo?)"/> runs.
     /// </summary>
     /// <returns>The header's contents, or null when it could not be read.</returns>
-    public async ValueTask<ImageInfo?> InspectAsync(
-        MediaInput input,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<ImageInfo?> InspectAsync(MediaInput input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
 
@@ -107,19 +99,18 @@ public abstract class ImageCodec : MediaCodec
             int got = await input.Stream
                 .ReadAsync(prefix.AsMemory(read, prefix.Length - read), cancellationToken)
                 .ConfigureAwait(false);
+
             if (got == 0)
                 break;
+
             read += got;
         }
 
         return TryInspect(prefix.AsSpan(0, read), out ImageInfo? info) ? info : null;
     }
 
-    public virtual ValueTask EncodeAsync(
-        ImageSequence sequence,
-        Stream output,
-        ImageEncodeOptions? options = null,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask EncodeAsync(ImageSequence sequence, Stream output,
+        ImageEncodeOptions? options = null, CancellationToken cancellationToken = default)
     {
         throw new NotSupportedException("This image codec does not support encoding.");
     }

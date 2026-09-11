@@ -1,3 +1,4 @@
+using Broiler.Media.Image.Managed.Jpeg;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -38,22 +39,20 @@ internal static class JpegLimitTests
     /// different reason. Every assertion below is that it does <em>not</em> get
     /// that far.
     /// </remarks>
-    private static byte[] Frame(
-        int width,
-        int height,
-        (int Id, int H, int V, int Quant)[] components,
-        byte[]? extraSegments = null)
+    private static byte[] Frame(int width, int height, (int Id, int H, int V, int Quant)[] components, byte[]? extraSegments = null)
     {
         var bytes = new List<byte> { 0xFF, 0xD8 };
         if (extraSegments is not null)
             bytes.AddRange(extraSegments);
 
         int length = 8 + components.Length * 3;
+
         bytes.AddRange([0xFF, 0xC0, (byte)(length >> 8), (byte)length]);
         bytes.Add(8);                                   // 8-bit precision
         bytes.AddRange([(byte)(height >> 8), (byte)height]);
         bytes.AddRange([(byte)(width >> 8), (byte)width]);
         bytes.Add((byte)components.Length);
+
         foreach ((int id, int h, int v, int quant) in components)
         {
             bytes.Add((byte)id);
@@ -86,9 +85,7 @@ internal static class JpegLimitTests
     {
         // The one budget here the decoder had nothing of its own for: it checked
         // that dimensions were positive and nothing more.
-        Refused(
-            Frame(20_000, 16, Grey),
-            new MediaLimits(maxImageDimension: 8_192));
+        Refused(Frame(20_000, 16, Grey), new MediaLimits(maxImageDimension: 8_192));
         return default;
     }
 
@@ -96,9 +93,7 @@ internal static class JpegLimitTests
     {
         // Inside the dimension limit on each axis and far past it multiplied,
         // which is why the two are separate checks.
-        Refused(
-            Frame(60_000, 60_000, Grey),
-            new MediaLimits(maxImagePixels: 16L * 1024 * 1024));
+        Refused(Frame(60_000, 60_000, Grey), new MediaLimits(maxImagePixels: 16L * 1024 * 1024));
         return default;
     }
 
@@ -108,9 +103,7 @@ internal static class JpegLimitTests
         // never reach this check: the decoder's own scope admits 1 or 3 and
         // rejects the rest first, so this budget only matters to a caller
         // stricter than the codec.
-        Refused(
-            Frame(16, 16, [(1, 1, 1, 0), (2, 1, 1, 0), (3, 1, 1, 0)]),
-            new MediaLimits(maxComponents: 2));
+        Refused(Frame(16, 16, [(1, 1, 1, 0), (2, 1, 1, 0), (3, 1, 1, 0)]), new MediaLimits(maxComponents: 2));
         return default;
     }
 
@@ -120,9 +113,7 @@ internal static class JpegLimitTests
         // allocation from a header that looks small. Like the component count,
         // this only bites below the decoder's own ceiling of 4 — a factor above
         // that is refused as malformed before any budget is consulted.
-        Refused(
-            Frame(1_024, 1_024, [(1, 4, 4, 0)]),
-            new MediaLimits(maxSamplingFactor: 2));
+        Refused(Frame(1_024, 1_024, [(1, 4, 4, 0)]), new MediaLimits(maxSamplingFactor: 2));
         return default;
     }
 
@@ -130,9 +121,7 @@ internal static class JpegLimitTests
     {
         byte[] dri = [0xFF, 0xDD, 0x00, 0x04, 0xFF, 0xFF];
 
-        Refused(
-            Frame(16, 16, Grey, dri),
-            new MediaLimits(maxRestartInterval: 1_024));
+        Refused(Frame(16, 16, Grey, dri), new MediaLimits(maxRestartInterval: 1_024));
         return default;
     }
 
@@ -144,9 +133,7 @@ internal static class JpegLimitTests
         for (int i = 0; i < 64; i++)
             padding.AddRange([0xFF, 0xFE, 0x00, 0x02]);
 
-        Refused(
-            Frame(16, 16, Grey, [.. padding]),
-            new MediaLimits(maxMarkerSegments: 16));
+        Refused(Frame(16, 16, Grey, [.. padding]), new MediaLimits(maxMarkerSegments: 16));
         return default;
     }
 
@@ -159,16 +146,12 @@ internal static class JpegLimitTests
         // allocates an empty array and carries on. A second component would hide
         // that, because its own honest total would trip the budget instead — so
         // this frame has one.
-        MediaException refusal = Refused(
-            Frame(65_535, 65_535, [(1, 4, 4, 0)]),
-            new MediaLimits(
-                maxImagePixels: long.MaxValue / 4,
-                maxCoefficientBytes: 256L * 1024 * 1024,
-                maxBlocks: long.MaxValue / 4));
+        MediaLimits limits = new(maxImagePixels: long.MaxValue / 4, maxCoefficientBytes: 256L * 1024 * 1024, maxBlocks: long.MaxValue / 4);
+        MediaException refusal = Refused(Frame(65_535, 65_535, [(1, 4, 4, 0)]), limits);
 
-        Assert.True(
-            refusal.Error.Message.Contains("coefficient", StringComparison.OrdinalIgnoreCase),
+        Assert.True(refusal.Error.Message.Contains("coefficient", StringComparison.OrdinalIgnoreCase),
             "The refusal names the coefficient budget: " + refusal.Error.Message);
+
         return default;
     }
 
@@ -176,16 +159,12 @@ internal static class JpegLimitTests
     {
         // Memory and effort are different budgets. A frame can sit inside the
         // coefficient allowance and still be more decoding than a caller wants.
-        MediaException refusal = Refused(
-            Frame(16_384, 16_384, Grey),
-            new MediaLimits(
-                maxImagePixels: long.MaxValue / 4,
-                maxCoefficientBytes: long.MaxValue / 4,
-                maxBlocks: 1_024));
+        MediaLimits limits = new(maxImagePixels: long.MaxValue / 4, maxCoefficientBytes: long.MaxValue / 4, maxBlocks: 1_024);
+        MediaException refusal = Refused(Frame(16_384, 16_384, Grey), limits);
 
-        Assert.True(
-            refusal.Error.Message.Contains("block", StringComparison.OrdinalIgnoreCase),
+        Assert.True(refusal.Error.Message.Contains("block", StringComparison.OrdinalIgnoreCase),
             "The refusal names the work budget: " + refusal.Error.Message);
+
         return default;
     }
 
@@ -202,8 +181,7 @@ internal static class JpegLimitTests
         // The other half of every case above: a frame this size gets past the
         // header checks and fails later, for having no scan rather than for being
         // too big. If the budgets refused this, they would refuse real images.
-        Assert.Throws<FormatException>(
-            () => JpegDecoder.Decode(Frame(64, 64, Grey), JpegColorTransform.YCbCr, MediaLimits.Default));
+        Assert.Throws<FormatException>(() => JpegDecoder.Decode(Frame(64, 64, Grey), JpegColorTransform.YCbCr, MediaLimits.Default));
         return default;
     }
 }

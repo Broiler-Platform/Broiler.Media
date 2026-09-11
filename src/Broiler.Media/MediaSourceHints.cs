@@ -6,11 +6,7 @@ public sealed class MediaSourceHints
 {
     public static MediaSourceHints Empty { get; } = new();
 
-    public MediaSourceHints(
-        string? mimeType = null,
-        string? fileExtension = null,
-        string? displayName = null,
-        string? sourceUri = null)
+    public MediaSourceHints(string? mimeType = null, string? fileExtension = null, string? displayName = null, string? sourceUri = null)
     {
         MimeType = string.IsNullOrWhiteSpace(mimeType) ? null : mimeType.Trim();
         FileExtension = string.IsNullOrWhiteSpace(fileExtension) ? null : fileExtension.Trim();

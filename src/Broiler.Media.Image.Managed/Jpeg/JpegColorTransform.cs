@@ -1,4 +1,4 @@
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Jpeg;
 
 /// <summary>
 /// How a three-component JPEG's samples are to be read.

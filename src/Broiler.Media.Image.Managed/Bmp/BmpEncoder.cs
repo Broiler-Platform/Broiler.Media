@@ -1,7 +1,7 @@
 using System;
 using System.Buffers.Binary;
 
-namespace Broiler.Media.Image.Managed;
+namespace Broiler.Media.Image.Managed.Bmp;
 
 /// <summary>
 /// Pure-managed encoder for uncompressed 32bpp BGRA Windows BMP files

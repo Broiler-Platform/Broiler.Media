@@ -8,6 +8,7 @@ public sealed class MediaError
     {
         if (string.IsNullOrWhiteSpace(message))
             throw new ArgumentException("A media error needs a message.", nameof(message));
+        
         if (byteOffset < 0)
             throw new ArgumentOutOfRangeException(nameof(byteOffset));
 

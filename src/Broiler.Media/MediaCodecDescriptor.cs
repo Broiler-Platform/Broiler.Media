@@ -6,15 +6,12 @@ namespace Broiler.Media;
 
 public sealed class MediaCodecDescriptor
 {
-    public MediaCodecDescriptor(
-        MediaCodecId id,
-        string displayName,
-        MediaKind kind,
-        MediaCodecCapabilities capabilities,
-        IEnumerable<MediaFormatDescriptor>? formats = null)
+    public MediaCodecDescriptor(MediaCodecId id, string displayName, MediaKind kind, 
+        MediaCodecCapabilities capabilities, IEnumerable<MediaFormatDescriptor>? formats = null)
     {
         if (string.IsNullOrWhiteSpace(id.Value))
             throw new ArgumentException("A media codec descriptor needs a non-empty id.", nameof(id));
+        
         if (string.IsNullOrWhiteSpace(displayName))
             throw new ArgumentException("A media codec descriptor needs a display name.", nameof(displayName));
 
@@ -22,7 +19,7 @@ public sealed class MediaCodecDescriptor
         DisplayName = displayName;
         Kind = kind;
         Capabilities = capabilities;
-        Formats = Array.AsReadOnly((formats ?? Array.Empty<MediaFormatDescriptor>()).ToArray());
+        Formats = Array.AsReadOnly((formats ?? []).ToArray());
     }
 
     public MediaCodecId Id { get; }
