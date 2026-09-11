@@ -1,21 +1,16 @@
 <Project>
-
-  <!-- Broiler NuGet packaging metadata (vendored; do not edit by hand). -->
   <Import Project="$(MSBuildThisFileDirectory)eng\Broiler.Packaging.props" />
-
   <PropertyGroup>
-    <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Media</PackageProjectUrl>
-    <!-- Repository preview floor; publishing advances it using durable release tags. -->
-    <VersionSuffix>preview.7</VersionSuffix>
-
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Configurations>Debug;Release</Configurations>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <IsTrimmable>true</IsTrimmable>
     <IsAotCompatible>true</IsAotCompatible>
+    <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Media</PackageProjectUrl>
   </PropertyGroup>
 </Project>
