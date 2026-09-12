@@ -11,7 +11,7 @@ internal static class ArchitectureTests
 {
     public static void Register(ICollection<(string Name, Func<ValueTask> Body)> tests)
     {
-        tests.Add(("Media projects have no third-party package references", NoPackageReferences));
+        tests.Add(("Media package references match the Native interop allowlist", PackageReferenceAllowlist));
         tests.Add(("Runtime project references match the Phase 1 allowlist", RuntimeReferenceAllowlist));
         tests.Add(("Abstractions do not reference Graphics, HTML, or Media Foundation", AbstractionsStayNeutral));
         tests.Add(("Nothing in the component references Broiler.Graphics", ComponentNeverReferencesGraphics));
@@ -19,13 +19,24 @@ internal static class ArchitectureTests
         tests.Add(("Shared Media has no untyped object Decode method", NoUntypedSharedDecode));
     }
 
-    private static ValueTask NoPackageReferences()
+    private static ValueTask PackageReferenceAllowlist()
     {
         string root = FindMediaRoot();
         foreach (string project in Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories))
         {
-            string text = File.ReadAllText(project);
-            Assert.DoesNotContain("<PackageReference", text, project);
+            string relativeProject = Path.GetRelativePath(root, project).Replace('\\', '/');
+            string[] expected = relativeProject switch
+            {
+                "Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj" or
+                "Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj"
+                    => ["Broiler.Native.Windows"],
+                _ => [],
+            };
+            string[] actual = [.. XDocument.Load(project)
+                .Descendants("PackageReference")
+                .Select(element => element.Attribute("Include")?.Value ?? string.Empty)
+                .Order(StringComparer.OrdinalIgnoreCase)];
+            Assert.SequenceEqual(expected, actual, relativeProject);
         }
 
         return ValueTask.CompletedTask;

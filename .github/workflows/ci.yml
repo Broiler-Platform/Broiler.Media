@@ -8,6 +8,11 @@ on:
 
 permissions:
   contents: read
+  packages: read
+
+env:
+  # Native previews are published to GitHub Packages. This also covers pack's restore.
+  NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
 
 concurrency:
   group: ci-${{ github.ref }}

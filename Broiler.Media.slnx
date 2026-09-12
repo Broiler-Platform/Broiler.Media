@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/solution items/">
     <File Path="Directory.Build.props" />
+    <File Path="NuGet.config" />
     <File Path="LICENSE" />
     <File Path="README.md" />
     <File Path=".gitignore" />
@@ -36,10 +37,8 @@
     <Project Path="src/tests/Broiler.Media.Audio.Tests/Broiler.Media.Audio.Tests.csproj" />
     <Project Path="src/tests/Broiler.Media.Audio.Managed.Tests/Broiler.Media.Audio.Managed.Tests.csproj" />
     <Project Path="src/tests/Broiler.Media.Video.Tests/Broiler.Media.Video.Tests.csproj" />
-    <!-- Windows-only: builds under the *-Windows configurations exclusively. -->
-    <Project Path="src/tests/Broiler.Media.Video.MediaFoundation.Tests/Broiler.Media.Video.MediaFoundation.Tests.csproj">
-      <Build Project="false" />
-    </Project>
+    <!-- Builds on every host; the test script runs this suite only on Windows. -->
+    <Project Path="src/tests/Broiler.Media.Video.MediaFoundation.Tests/Broiler.Media.Video.MediaFoundation.Tests.csproj" />
     <Project Path="src/tests/Broiler.Media.Image.Tests/Broiler.Media.Image.Tests.csproj" />
     <Project Path="src/tests/Broiler.Media.Image.Managed.Tests/Broiler.Media.Image.Managed.Tests.csproj" />
   </Folder>

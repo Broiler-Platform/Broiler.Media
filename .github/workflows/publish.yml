@@ -26,15 +26,17 @@ permissions:
   contents: read
   packages: write
 
+env:
+  # Both jobs restore Native previews from GitHub Packages, regardless of push target.
+  NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
+
 concurrency:
   # Every branch and tag shares the version sequence.
   group: publish
   cancel-in-progress: false
 
 jobs:
-  # Both provider families are exercised before anything is pushed. Without
-  # this, a tag push would publish a commit whose evdev suite never ran: the
-  # publish job is a Windows host, and the Linux runner is built linux-x64.
+  # Run all Media suites, including Media Foundation, before anything is pushed.
   validate:
     name: Validate ${{ matrix.configuration }}
     runs-on: ${{ matrix.os }}
@@ -107,9 +109,7 @@ jobs:
             exit 1
           fi
 
-      # Both configurations, because neither one alone covers the suite. The
-      # neutral and Android packages fall out of both; the builds are
-      # deterministic, so the second pack reproduces them byte for byte.
+      # Release builds all nine Media packages.
       - name: Pack
         run: |
           set -euo pipefail

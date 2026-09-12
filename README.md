@@ -146,11 +146,25 @@ Broiler.Media.slnx       solution over every project in src/ and src/tests/
 The repository is standalone and has no Graphics submodule or package dependency.
 The application supplies the borrowed HWND through `IHwndVideoOutput`.
 
-WIC and Media Foundation declarations are shared through `Broiler.Native.Windows`.
-Codec behavior and Media error mapping remain here. A sibling `Broiler.Native`
-checkout supplies project references; set `BroilerNativeRoot` for another location.
-Without sources, builds use `BroilerNativeVersion` packages (initially
-`0.1.0-preview.1`). Publish Native before releasing these consumer changes.
+WIC and Media Foundation declarations are shared through the
+`Broiler.Native.Windows` package, currently `0.1.0-preview.3`. Codec behavior and
+Media error mapping remain here. `NuGet.config` restores Native packages from
+the Broiler-Platform GitHub Packages feed and other dependencies from NuGet.org.
+A sibling Native checkout does not replace these package references.
+
+For local restore, set `NuGetPackageSourceCredentials_github` to
+`Username=YOUR_GITHUB_USER;Password=YOUR_TOKEN;ValidAuthenticationTypes=Basic`, using
+a personal access token (classic) with `read:packages`. Keep credentials out of
+the repository. CI and publishing supply this variable from `GITHUB_TOKEN`.
+In the GitHub package settings for **both** `Broiler.Native.Windows` and its
+dependency `Broiler.Native`, grant `Broiler-Platform/Broiler.Media` read access
+under **Manage Actions access**. Workflow `packages: read` permission alone does
+not grant access to another repository's private packages. See
+[GitHub's NuGet authentication documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry#authenticating-in-a-github-actions-workflow).
+
+Before releasing Media for consumers using only NuGet.org, publish the required
+Native versions there too; selecting the Media publish target does not publish
+its dependencies or change the restore feed.
 
 ## Building and testing
 
@@ -158,65 +172,57 @@ Without sources, builds use `BroilerNativeVersion` packages (initially
 git clone https://github.com/Broiler-Platform/Broiler.Media.git
 ```
 
-The solution defines six configurations. `Debug`/`Release` are the plain host builds;
-the `-Linux` and `-Windows` variants additionally define a `LINUX`/`WINDOWS` compilation
-symbol and gate the platform-specific projects.
+The solution uses `Debug` and `Release` configurations.
 
 ```bash
-dotnet build Broiler.Media.slnx -c Release-Linux
+dotnet build Broiler.Media.slnx -c Release
 ```
 
-All runtime libraries build in every configuration. The Media Foundation test runner
-builds only under `Debug-Windows`/`Release-Windows`. Use `Release-Windows` on Windows
-to include that suite.
+All runtime libraries and test runners build in both configurations. The test
+script runs the Media Foundation suite only on Windows.
 
 Tests are self-hosted console runners rather than a test framework, so there is
 nothing for `dotnet test` to discover. After building, run every suite the
 configuration enables (pass the same configuration used for the build):
 
 ```bash
-./eng/run-tests.sh Release-Linux
+./eng/run-tests.sh Release
 ```
 
 Or run one directly:
 
 ```bash
-dotnet run --project src/tests/Broiler.Media.Image.Managed.Tests -c Release-Linux
+dotnet run --project src/tests/Broiler.Media.Image.Managed.Tests -c Release
 ```
 
 To produce the packages locally:
 
 ```bash
-dotnet pack Broiler.Media.slnx -c Release-Linux -o ./artifacts
+dotnet pack Broiler.Media.slnx -c Release -o ./artifacts
 ```
 
 ## Continuous integration and releases
 
-`.github/workflows/ci.yml` builds and tests `Release-Linux` on Ubuntu and
-`Release-Windows` on Windows. Both jobs pack and verify all nine packages, including
-Windows and MediaFoundation, and upload separate artifacts. Package verification
-checks assemblies, XML docs, symbols, metadata, and dependency versions.
+`.github/workflows/ci.yml` builds and runs all seven Media suites in `Release`
+on Windows, tests preview version selection, packs all nine packages, and uploads
+the packages and symbols as artifacts.
 
 `.github/workflows/publish.yml` builds and tests on Windows before publishing all
 nine packages. Run it manually to select GitHub Packages or nuget.org. It defaults
-to a dry run that verifies and attaches packages without pushing or reserving a version.
+to a dry run that builds and attaches packages without pushing.
 
-Manual publishes automatically choose `0.1.0-preview.7`, then `preview.8`, and so on.
-`Directory.Build.props` sets the minimum preview; existing `publish/*` reservations
-and `v*` release tags advance the counter numerically. Both feeds share the counter.
-The workflow reserves `publish/<version>` immediately before the feed push, using
-the repository token with `contents: write`. Keep these tags: they are the persistent
-version history. A rerun of the same Actions run and commit reuses its reservation
-to finish a partial push; a new run advances the number. Failed pushes can therefore
-leave a gap. Repository rules must allow the workflow to create `publish/*` tags.
+Manual publishes select the next unused preview across all nine package IDs.
+The configured package version supplies the minimum. The resolver reads NuGet.org
+and, when targeting GitHub Packages, that feed too. An optional `preview.N` suffix
+must be unused and at least the next preview. Workflow concurrency serializes
+publishes; the workflow does not create version reservation tags.
 
-Pushing `v0.1.0-preview.N` (or `v0.1.0` for a stable release) publishes that exact
-version to nuget.org. The numeric prefix must match the repository version, and a
-version reserved by another run cannot be reused. Update the repository prefix
-before starting another release line.
+Pushing `v0.1.0-preview.N` publishes that exact preview to NuGet.org, subject to
+the same version checks. The current resolver accepts preview releases only.
 
 Publishing to nuget.org needs a `NUGET_API_KEY` repository secret. GitHub Packages
-uses the built-in token. Version reservations do not trigger another publish run.
+uses the built-in token. Both jobs authenticate to GitHub Packages for Native
+restore, regardless of the selected publishing target.
 
 ## Packaging
 
