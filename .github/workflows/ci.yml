@@ -5,35 +5,35 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      package-version:
+        description: Resolved preview version for a publish run
+        type: string
+        default: ''
 
 permissions:
   contents: read
   packages: read
 
 env:
-  # Native previews are published to GitHub Packages. This also covers pack's restore.
+  PACKAGE_VERSION: ${{ inputs.package-version }}
   NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
-
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: ${{ matrix.configuration }}
+    name: ${{ matrix.os }} / Release
     runs-on: ${{ matrix.os }}
-
     defaults:
       run:
         shell: bash
-
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            configuration: Release
-
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -43,24 +43,32 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build
-        run: dotnet build Broiler.Media.slnx -c ${{ matrix.configuration }} --nologo
-
-      # The suites are self-hosted console runners, not a test framework, so
-      # there is nothing for `dotnet test` to discover. See eng/run-tests.sh.
-      - name: Test
-        run: bash ./eng/run-tests.sh ${{ matrix.configuration }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
 
       - name: Test preview version selection
         run: node --test eng/resolve-preview-version.test.mjs
 
-      - name: Pack
+      - name: Build
         run: |
-          dotnet pack Broiler.Media.slnx -c Release --nologo -o ./artifacts
-          echo "Packed:"
-          ls -1 ./artifacts
+          args=()
+          if [ -n "$PACKAGE_VERSION" ]; then
+            args+=("-p:Version=$PACKAGE_VERSION" "-p:PackageVersion=$PACKAGE_VERSION")
+          fi
+          dotnet build Broiler.Media.slnx -c Release --nologo "${args[@]}"
+
+      - name: Test
+        run: bash ./eng/run-tests.sh Release
+
+      - name: Pack and verify every package
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ./eng/pack.ps1 -Version $env:PACKAGE_VERSION
 
       - name: Upload packages
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v7
         with:
           name: nuget-packages

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.configuration }}
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            configuration: Release
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build Broiler.Media.slnx -c ${{ matrix.configuration }} --nologo
+
+      # The suites are self-hosted console runners, not a test framework, so
+      # there is nothing for `dotnet test` to discover. See eng/run-tests.sh.
+      - name: Test
+        run: bash ./eng/run-tests.sh ${{ matrix.configuration }}
+
+      - name: Test preview version selection
+        run: node --test eng/resolve-preview-version.test.mjs
+
+      - name: Pack
+        run: |
+          dotnet pack Broiler.Media.slnx -c Release --nologo -o ./artifacts
+          echo "Packed:"
+          ls -1 ./artifacts
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages-${{ matrix.configuration }}
+          path: artifacts/*
+          if-no-files-found: error

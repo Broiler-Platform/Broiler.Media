@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,11 +60,13 @@ export async function readVersions(source, packageIds, headers = {}, fetchImpl =
 }
 
 function readPackages() {
-  const solution = readFileSync(resolve(root, 'Broiler.Media.slnx'), 'utf8');
+  const solutions = readdirSync(root).filter(name => name.endsWith('.slnx'));
+  if (solutions.length !== 1) throw new Error('Expected exactly one solution.');
+  const solution = readFileSync(resolve(root, solutions[0]), 'utf8');
   const packages = [];
   for (const [, project] of solution.matchAll(/<Project\s+Path="([^"]+)"/g)) {
     const output = execFileSync('dotnet', [
-      'msbuild', project, '-nologo',
+      'msbuild', project, '-nologo', '-p:Configuration=Release',
       '-getProperty:IsPackable,PackageId,PackageVersion',
     ], { cwd: root, encoding: 'utf8' });
     const properties = JSON.parse(output).Properties;
@@ -101,11 +103,10 @@ async function main() {
   const version = chooseVersion(configured, published, {
     suffix: process.env.VERSION_SUFFIX || '', tag,
   });
-  const suffix = version.slice(version.indexOf('-') + 1);
   console.log(`Version: ${version} -> ${target} (${packageIds.length} packages; dry-run: ${process.env.DRY_RUN ?? 'true'})`);
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT,
-      `version=${version}\nversion_args=-p:VersionSuffix=${suffix} -p:PackageVersion=${version}\n`);
+      `version=${version}\nversion_args=-p:Version=${version} -p:PackageVersion=${version}\n`);
   }
 }
 

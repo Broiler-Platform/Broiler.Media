@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Broiler.Native.Windows" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.Native.Windows" />
   </ItemGroup>
 
 </Project>

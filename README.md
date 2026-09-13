@@ -9,7 +9,7 @@ abstraction assemblies with one concrete implementation assembly per media kind.
 Rendering, windowing, networking, and HTML media-element behaviour deliberately live
 outside this component.
 
-> **Preview release.** The next release starts at `0.1.0-preview.7`. Public names,
+> **Preview release.** Publishing selects the next unused preview. Public names,
 > XML documentation, and the `MediaLimits`/pixel-format contracts are not frozen yet
 > and may change before `1.0`. See the
 > [roadmap](https://github.com/Broiler-Platform/Broiler.Media/blob/main/docs/roadmap.md)
@@ -198,38 +198,25 @@ dotnet run --project src/tests/Broiler.Media.Image.Managed.Tests -c Release
 To produce the packages locally:
 
 ```bash
-dotnet pack Broiler.Media.slnx -c Release -o ./artifacts
+pwsh -File eng/pack.ps1
 ```
 
 ## Continuous integration and releases
 
-`.github/workflows/ci.yml` builds and runs all seven Media suites in `Release`
-on Windows, tests preview version selection, packs all nine packages, and uploads
-the packages and symbols as artifacts.
+CI runs the six portable suites on Linux and Windows, plus Media Foundation on
+Windows, and packs all nine packages. Publish selects the next unused preview,
+reuses CI, verifies consumer restore from the selected destination, and publishes
+the resulting artifacts. Manual runs default to a dry run.
 
-`.github/workflows/publish.yml` builds and tests on Windows before publishing all
-nine packages. Run it manually to select GitHub Packages or nuget.org. It defaults
-to a dry run that builds and attaches packages without pushing.
-
-Manual publishes select the next unused preview across all nine package IDs.
-The configured package version supplies the minimum. The resolver reads NuGet.org
-and, when targeting GitHub Packages, that feed too. An optional `preview.N` suffix
-must be unused and at least the next preview. Workflow concurrency serializes
-publishes; the workflow does not create version reservation tags.
-
-Pushing `v0.1.0-preview.N` publishes that exact preview to NuGet.org, subject to
-the same version checks. The current resolver accepts preview releases only.
-
-Publishing to nuget.org needs a `NUGET_API_KEY` repository secret. GitHub Packages
-uses the built-in token. Both jobs authenticate to GitHub Packages for Native
-restore, regardless of the selected publishing target.
+See [CI, packages, and releases](docs/packaging.md) for dependency management,
+feed credentials, version selection, and release tags.
 
 ## Packaging
 
 Packages are published per assembly with lockstep versioning, Apache-2.0 licensing,
 symbol packages (`.snupkg`), and SourceLink. The meta-package contains dependencies
 only and has no symbol package. Shared metadata is vendored from
-`eng/Broiler.Packaging.props`; repository overrides, including the preview floor,
+`eng/Broiler.Packaging.props`; repository overrides, including any preview floor,
 live in `Directory.Build.props`. All runtime packages target `net10.0`.
 
 ## Design records
