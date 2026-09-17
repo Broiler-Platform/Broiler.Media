@@ -819,4 +819,109 @@ internal static class JpegDecoder
 
         return false;
     }
+
+    private static ReadOnlySpan<byte> AdobeSignature => "Adobe"u8;
+
+    /// <summary>
+    /// Reads a JPEG's marker segments far enough to describe its frame, including Adobe APP14.
+    /// </summary>
+    public static bool TryReadFrameHeader(ReadOnlySpan<byte> data, out JpegFrameInfo frame, out string? error)
+    {
+        frame = default;
+
+        if (data.Length < 4 || data[0] != 0xFF || data[1] != JpegTables.MarkerSoi)
+        {
+            error = "The stream does not begin with a JPEG SOI marker.";
+            return false;
+        }
+
+        bool haveFrame = false;
+        byte frameMarker = 0;
+        int precision = 0, width = 0, height = 0, components = 0;
+        bool adobe = false;
+        int transform = -1;
+
+        int pos = 2;
+        while (pos + 1 < data.Length)
+        {
+            if (data[pos] != 0xFF)
+            {
+                pos++;
+                continue;
+            }
+
+            byte marker = data[pos + 1];
+            pos += 2;
+
+            if (marker == 0xFF || marker == 0x01 || marker is >= 0xD0 and <= 0xD8)
+                continue;
+
+            if (marker == 0xD9)
+                break;
+
+            if (pos + 2 > data.Length)
+            {
+                error = "A JPEG segment header runs past the end of the stream.";
+                return false;
+            }
+
+            int length = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(pos, 2));
+            if (length < 2 || pos + length > data.Length)
+            {
+                error = "A JPEG segment declares a length that does not fit the stream.";
+                return false;
+            }
+
+            ReadOnlySpan<byte> segment = data.Slice(pos + 2, length - 2);
+
+            if (marker == 0xDA)
+                break;
+
+            if (marker == 0xEE && segment.Length >= 12 && segment[..5].SequenceEqual(AdobeSignature))
+            {
+                adobe = true;
+                transform = segment[^1];
+            }
+            else if (marker is >= 0xC0 and <= 0xCF && marker is not (0xC4 or 0xC8 or 0xCC))
+            {
+                if (haveFrame)
+                {
+                    error = "The stream declares more than one JPEG frame.";
+                    return false;
+                }
+
+                if (segment.Length < 6)
+                {
+                    error = "A JPEG frame header is too short to describe a frame.";
+                    return false;
+                }
+
+                haveFrame = true;
+                frameMarker = marker;
+                precision = segment[0];
+                height = BinaryPrimitives.ReadUInt16BigEndian(segment.Slice(1, 2));
+                width = BinaryPrimitives.ReadUInt16BigEndian(segment.Slice(3, 2));
+                components = segment[5];
+            }
+
+            pos += length;
+        }
+
+        if (!haveFrame)
+        {
+            error = "The stream carries no JPEG frame header.";
+            return false;
+        }
+
+        if (width <= 0 || height <= 0 || components <= 0)
+        {
+            error = "The JPEG frame header declares an empty frame.";
+            return false;
+        }
+
+        frame = new JpegFrameInfo(frameMarker, precision, width, height, components, adobe, transform);
+        error = null;
+        return true;
+    }
 }
+

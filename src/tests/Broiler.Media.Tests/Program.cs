@@ -11,6 +11,7 @@ internal static class Program
         var tests = new List<(string Name, Func<ValueTask> Body)>();
         CatalogTests.Register(tests);
         ArchitectureTests.Register(tests);
+        XmpMetadataTests.Register(tests);
 
         int passed = 0;
         var failures = new List<string>();

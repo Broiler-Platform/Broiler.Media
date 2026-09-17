@@ -62,5 +62,9 @@ public sealed class JpegImageCodec : ImageCodec
 
     /// <summary>Reads what the JPEG header declares, decoding nothing.</summary>
     public override bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info) => JpegDecoder.TryInspect(data, out info);
+
+    /// <summary>Reads a JPEG's marker segments far enough to describe its frame, including Adobe APP14.</summary>
+    public static bool TryReadFrameHeader(ReadOnlySpan<byte> data, out JpegFrameInfo frame, out string? error) =>
+        JpegDecoder.TryReadFrameHeader(data, out frame, out error);
 }
 

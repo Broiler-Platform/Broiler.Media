@@ -21,7 +21,7 @@ internal static class Program
     {
         var tests = new List<(string Name, Func<ValueTask> Body)>
         {
-            ("Managed image provider exposes PNG, JPEG, BMP, GIF and WebP codecs", ProviderExposesCodecs),
+            ("Managed image provider exposes PNG, JPEG, BMP, GIF, WebP, JBIG2 and JPEG 2000 codecs", ProviderExposesCodecs),
             ("Catalog selects concrete managed codecs by signature", CatalogSelectsBySignature),
             ("GIF fixtures decode and roundtrip", GifFixturesDecodeAndRoundTrip),
             ("WebP lossless fixtures decode and roundtrip", WebpLosslessFixturesDecodeAndRoundTrip),
@@ -47,6 +47,9 @@ internal static class Program
 
         JpegLimitTests.Register(tests);
         DecodePathTests.Register(tests);
+        CcittFax.CcittFaxTests.Register(tests);
+        CompressionTests.Register(tests);
+        Jbig2AndJpxTests.Register(tests);
 
         int passed = 0;
         var failures = new List<string>();
@@ -75,12 +78,14 @@ internal static class Program
     private static ValueTask ProviderExposesCodecs()
     {
         IReadOnlyList<ImageCodec> codecs = ManagedImageCodecs.CreateCodecs();
-        Assert.Equal(5, codecs.Count);
+        Assert.Equal(7, codecs.Count);
         Assert.True(codecs[0] is PngImageCodec, "PNG should be the first managed image codec.");
         Assert.True(codecs[1] is JpegImageCodec, "JPEG should be the second managed image codec.");
         Assert.True(codecs[2] is BmpImageCodec, "BMP should be the third managed image codec.");
         Assert.True(codecs[3] is GifImageCodec, "GIF should be the fourth managed image codec.");
         Assert.True(codecs[4] is WebpImageCodec, "WebP should be the fifth managed image codec.");
+        Assert.True(codecs[5] is Broiler.Media.Image.Managed.Jbig2.Jbig2ImageCodec, "JBIG2 should be the sixth managed image codec.");
+        Assert.True(codecs[6] is Broiler.Media.Image.Managed.Jpx.JpxImageCodec, "JPEG 2000 should be the seventh managed image codec.");
         return ValueTask.CompletedTask;
     }
 
