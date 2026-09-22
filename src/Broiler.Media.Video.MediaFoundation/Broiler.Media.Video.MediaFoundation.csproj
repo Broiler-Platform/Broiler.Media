@@ -6,6 +6,9 @@
     <AssemblyName>Broiler.Media.Video.MediaFoundation</AssemblyName>
     <Description>Windows Media Foundation-backed video implementation for Broiler.Media.Video.</Description>
     <PackageTags>broiler;media;video;windows;mediafoundation</PackageTags>
+    <!-- The COM source generator behind MediaEngineNotify ([GeneratedComClass]) emits unsafe
+         vtable code; the project itself declares no unsafe blocks. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup>

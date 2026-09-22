@@ -3,13 +3,16 @@ using Broiler.Native.Windows;
 using Broiler.Media.Video.Windows;
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 
 namespace Broiler.Media.Video.MediaFoundation;
 
 [SupportedOSPlatform("windows")]
-internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
+internal sealed partial class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
 {
+    private static readonly StrategyBasedComWrappers s_comWrappers = new();
+
     private readonly MediaEngineNotify _notify;
     private IMFMediaEngine? _engine;
     private object? _factoryObject;
@@ -40,12 +43,10 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
 
     public static MediaFoundationMediaEngine Create(nint? targetHwnd, VideoSessionOptions options)
     {
-        int result = MediaFoundationPlatformNative.MFCreateAttributes(out IntPtr attributesPointer, 4);
+        int result = MediaFoundationPlatformNative.MFCreateAttributes(out IMFAttributes attributes, 4);
         MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine attribute creation failed.");
 
-        object attributesObject = Marshal.GetObjectForIUnknown(attributesPointer);
-        ComNative.ReleaseIUnknown(attributesPointer);
-        var attributes = (IMFAttributes)attributesObject;
+        object attributesObject = attributes;
         object? factoryObject = null;
         IMFMediaEngine? engine = null;
         IntPtr factoryPointer = IntPtr.Zero;
@@ -55,7 +56,17 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
         {
             Guid callback = MediaFoundationNative.MF_MEDIA_ENGINE_CALLBACK;
 
-            result = attributes.SetUnknown(ref callback, notify);
+            // The attribute store takes its own reference to the callback.
+            IntPtr notifyPointer = s_comWrappers.GetOrCreateComInterfaceForObject(notify, CreateComInterfaceFlags.None);
+            try
+            {
+                result = attributes.SetUnknown(ref callback, notifyPointer);
+            }
+            finally
+            {
+                ComNative.ReleaseIUnknown(notifyPointer);
+            }
+
             MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine callback configuration failed.");
 
             Guid synchronousClose = MediaFoundationNative.MF_MEDIA_ENGINE_SYNCHRONOUS_CLOSE;
@@ -79,17 +90,17 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
             Guid clsid = MediaFoundationNative.CLSID_MFMediaEngineClassFactory;
             Guid iid = MediaFoundationNative.IID_IMFMediaEngineClassFactory;
 
-            result = ComNative.CoCreateInstance(ref clsid, IntPtr.Zero,
-                ComNative.CLSCTX_INPROC_SERVER, ref iid, out factoryPointer);
+            result = ComNative.CoCreateInstance(in clsid, IntPtr.Zero,
+                ComNative.CLSCTX_INPROC_SERVER, in iid, out factoryPointer);
 
             MediaFoundationFaults.ThrowIfFailed(result, "Media Foundation media engine factory creation failed.", "COM");
 
-            factoryObject = Marshal.GetObjectForIUnknown(factoryPointer);
+            var factory = ComNative.GetOrCreateComObject<IMFMediaEngineClassFactory>(factoryPointer)!;
+            factoryObject = factory;
             ComNative.ReleaseIUnknown(factoryPointer);
 
             factoryPointer = IntPtr.Zero;
 
-            var factory = (IMFMediaEngineClassFactory)factoryObject!;
             uint createFlags = MediaFoundationNative.MF_MEDIA_ENGINE_DISABLE_LOCAL_PLUGINS;
 
             if (options.Muted)
@@ -209,9 +220,8 @@ internal sealed class MediaFoundationMediaEngine : IMediaFoundationMediaEngine
 
     private void OnNotifyEventReceived(object? sender, MediaFoundationMediaEngineEvent e) => EventReceived?.Invoke(this, e);
 
-    [ComVisible(true)]
-    [ClassInterface(ClassInterfaceType.None)]
-    private sealed class MediaEngineNotify : IMFMediaEngineNotify
+    [GeneratedComClass]
+    private sealed partial class MediaEngineNotify : IMFMediaEngineNotify
     {
         private volatile bool _connected = true;
 

@@ -1,8 +1,6 @@
 using System;
 using System.Buffers.Binary;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
 using Broiler.Native.Windows;
 using Broiler.Native.Windows.Wic;
 
@@ -171,16 +169,14 @@ internal static class WebpWicDecoder
         return false;
     }
 
-    [UnconditionalSuppressMessage("Trimming", "IL2050", Justification = "The WIC COM interfaces used here are private, statically declared, and directly referenced by the lossy WebP decoder.")]
     private static WicNative.IWICImagingFactory CreateFactory()
     {
         Guid clsid = WicNative.ClsidWicImagingFactory;
         Guid iid = WicNative.IidWicImagingFactory;
-        ThrowIfFailed(ComNative.CoCreateInstance(ref clsid, IntPtr.Zero, ComNative.CLSCTX_INPROC_SERVER, ref iid, out WicNative.IWICImagingFactory factory));
+        ThrowIfFailed(ComNative.CoCreateInstance(in clsid, IntPtr.Zero, ComNative.CLSCTX_INPROC_SERVER, in iid, out WicNative.IWICImagingFactory factory));
         return factory;
     }
 
-    [UnconditionalSuppressMessage("Trimming", "IL2050", Justification = "The COM IStream instance is only passed to private, statically declared WIC interfaces in this helper.")]
     private static IStream CreateComStream(ReadOnlySpan<byte> data)
     {
         IntPtr hglobal = Marshal.AllocHGlobal(data.Length);
@@ -220,8 +216,8 @@ internal static class WebpWicDecoder
 
     private static void Release(object? comObject)
     {
-        if (comObject is not null && OperatingSystem.IsWindows())
-            Marshal.FinalReleaseComObject(comObject);
+        if (OperatingSystem.IsWindows())
+            ComNative.ReleaseComObject(comObject);
     }
 
 }

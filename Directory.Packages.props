@@ -3,6 +3,6 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Broiler.Native.Windows" Version="0.1.0-preview.3" />
+    <PackageVersion Include="Broiler.Native.Windows" Version="0.1.0-preview.5" />
   </ItemGroup>
 </Project>
