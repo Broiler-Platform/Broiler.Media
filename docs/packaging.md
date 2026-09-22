@@ -53,12 +53,20 @@ does not copy upstream packages there.
 The `Broiler.Native.Windows` and `Broiler.Native` versions Media references are
 already on NuGet.org, so a NuGet.org publish restores without GitHub Packages.
 
-Restore sources follow the publish destination. CI (and Publish, which calls it)
-takes a `feed` input: `github`, the default, keeps the repository `NuGet.config`;
-`nuget` replaces it with `eng/NuGet.nuget-org.config` before building, so a
-NuGet.org release is built, tested, and packed only against packages that exist
-on NuGet.org. The same sources apply to the consumer restore check below.
+CI selects the restore feed with `eng/select-restore-feed.mjs` before building. It
+reads the exact `Broiler.*` versions pinned in `Directory.Packages.props` and checks
+which feed hosts them. The workflow's `feed` input controls the choice:
 
+- `auto` (pull requests, pushes, manual CI): NuGet.org when it hosts every pinned
+  version, otherwise GitHub Packages. GitHub is only queried when NuGet.org is
+  incomplete, so a NuGet.org-complete build needs no package credentials.
+- `nuget` / `github` (Publish passes its destination): that feed must host every
+  pinned version, or the run stops before building and names what is missing.
+
+For `nuget`, `eng/NuGet.nuget-org.config` replaces `NuGet.config`; `github` keeps the
+repository `NuGet.config`. A NuGet.org release is therefore built, tested, and packed
+only against packages that exist on NuGet.org, matching the consumer restore check
+below. `node --test eng/select-restore-feed.test.mjs` covers the selection rules.
 ## CI and Publish
 
 CI builds and tests `Release` on Ubuntu and Windows. Windows packs and attaches the
