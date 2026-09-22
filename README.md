@@ -162,9 +162,10 @@ under **Manage Actions access**. Workflow `packages: read` permission alone does
 not grant access to another repository's private packages. See
 [GitHub's NuGet authentication documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry#authenticating-in-a-github-actions-workflow).
 
-Before releasing Media for consumers using only NuGet.org, publish the required
-Native versions there too; selecting the Media publish target does not publish
-its dependencies or change the restore feed.
+The referenced Native versions are also published on NuGet.org, so consumers
+using only NuGet.org can restore Media. When bumping the Native reference, publish
+that Native version to NuGet.org first; selecting the Media publish target does not
+publish its dependencies or change the restore feed.
 
 ## Building and testing
 
@@ -204,7 +205,8 @@ pwsh -File eng/pack.ps1
 ## Continuous integration and releases
 
 CI runs the six portable suites on Linux and Windows, plus Media Foundation on
-Windows, and packs all nine packages. Publish selects the next unused preview,
+Windows, and packs all nine packages. Publish selects the next preview unused on
+both NuGet.org and GitHub Packages,
 reuses CI, verifies consumer restore from the selected destination, and publishes
 the resulting artifacts. Manual runs default to a dry run.
 

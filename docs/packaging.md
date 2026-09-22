@@ -50,6 +50,8 @@ another repository's private packages. See [GitHub's registry documentation](htt
 Native must be available before Media; Media before Input; and those dependencies
 before Graphics. DOM is independent. Selecting NuGet.org as the publish destination
 does not copy upstream packages there.
+The `Broiler.Native.Windows` and `Broiler.Native` versions Media references are
+already on NuGet.org, so a NuGet.org publish restores without GitHub Packages.
 
 ## CI and Publish
 
@@ -69,8 +71,10 @@ pwsh -File eng/verify-feed.ps1 -Target github -Packages artifacts
 ```
 
 Leave `version-suffix` empty to select the next unused `preview.N`. The resolver
-checks every shipping package on NuGet.org and, for GitHub publishes, GitHub Packages.
-The configured preview is the minimum; a partially published preview is skipped.
+checks every shipping package on **both** NuGet.org and GitHub Packages, whichever
+feed is the destination, so the preview sequence is cumulative: with `preview.3` on
+GitHub Packages and `preview.2` on NuGet.org, the next publish to either feed is
+`preview.4`. The configured preview is the minimum; a partially published preview is skipped.
 An explicit suffix must be unused and at least the computed next preview. Feed
 errors stop the run. Publish runs are serialized within each repository.
 
