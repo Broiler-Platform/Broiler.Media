@@ -12,9 +12,9 @@ on:
         type: string
         default: ''
       feed:
-        description: Publish destination (github or nuget); selects the restore sources
+        description: Restore feed for Broiler packages (auto, nuget, or github); a publish passes its destination
         type: string
-        default: github
+        default: auto
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ permissions:
 
 env:
   PACKAGE_VERSION: ${{ inputs.package-version }}
-  FEED: ${{ inputs.feed || 'github' }}
+  FEED: ${{ inputs.feed || 'auto' }}
   NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -48,22 +48,22 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Select restore sources for ${{ inputs.feed || 'github' }}
-        run: |
-          case "$FEED" in
-            github) ;; # The repository NuGet.config: Broiler.* from GitHub Packages, the rest from NuGet.org.
-            nuget) cp eng/NuGet.nuget-org.config NuGet.config ;;
-            *) echo "::error::Unknown feed '$FEED'; use github or nuget." >&2; exit 1 ;;
-          esac
-          grep -o 'key="[^"]*" value="[^"]*"' NuGet.config
-
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: '24'
 
-      - name: Test preview version selection
-        run: node --test eng/resolve-preview-version.test.mjs
+      - name: Test release scripts
+        run: node --test eng/resolve-preview-version.test.mjs eng/select-restore-feed.test.mjs
+
+      # auto: NuGet.org when it hosts every pinned Broiler.* version, else GitHub Packages.
+      # A publish destination (nuget or github) must host them itself.
+      - name: Select restore feed (${{ inputs.feed || 'auto' }})
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node eng/select-restore-feed.mjs
+          grep -o 'key="[^"]*" value="[^"]*"' NuGet.config
 
       - name: Build
         run: |
