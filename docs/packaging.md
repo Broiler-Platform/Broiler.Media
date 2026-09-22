@@ -53,6 +53,12 @@ does not copy upstream packages there.
 The `Broiler.Native.Windows` and `Broiler.Native` versions Media references are
 already on NuGet.org, so a NuGet.org publish restores without GitHub Packages.
 
+Restore sources follow the publish destination. CI (and Publish, which calls it)
+takes a `feed` input: `github`, the default, keeps the repository `NuGet.config`;
+`nuget` replaces it with `eng/NuGet.nuget-org.config` before building, so a
+NuGet.org release is built, tested, and packed only against packages that exist
+on NuGet.org. The same sources apply to the consumer restore check below.
+
 ## CI and Publish
 
 CI builds and tests `Release` on Ubuntu and Windows. Windows packs and attaches the
@@ -83,6 +89,6 @@ checks. Only `X.Y.Z-preview.N` versions on the configured release line are accep
 stable and other prerelease formats are rejected. After a partial upload, use a
 new preview rather than reusing the old tag. Dry runs do not reserve a version.
 
-NuGet.org publishing requires the repository secret `NUGET_API_KEY`. GitHub
+NuGet.org publishing requires the repository secret `NUGET_TOKEN`. GitHub
 publishing uses `GITHUB_TOKEN`. Symbol packages are attached to the workflow artifact
 and pushed alongside packages to NuGet.org; GitHub receives `.nupkg` files only.

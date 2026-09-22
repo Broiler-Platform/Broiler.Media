@@ -11,6 +11,10 @@ on:
         description: Resolved preview version for a publish run
         type: string
         default: ''
+      feed:
+        description: Publish destination (github or nuget); selects the restore sources
+        type: string
+        default: github
 
 permissions:
   contents: read
@@ -18,6 +22,7 @@ permissions:
 
 env:
   PACKAGE_VERSION: ${{ inputs.package-version }}
+  FEED: ${{ inputs.feed || 'github' }}
   NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -42,6 +47,15 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+
+      - name: Select restore sources for ${{ inputs.feed || 'github' }}
+        run: |
+          case "$FEED" in
+            github) ;; # The repository NuGet.config: Broiler.* from GitHub Packages, the rest from NuGet.org.
+            nuget) cp eng/NuGet.nuget-org.config NuGet.config ;;
+            *) echo "::error::Unknown feed '$FEED'; use github or nuget." >&2; exit 1 ;;
+          esac
+          grep -o 'key="[^"]*" value="[^"]*"' NuGet.config
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
