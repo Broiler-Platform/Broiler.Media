@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chooseVersion, readVersions } from './resolve-preview-version.mjs';
+import { chooseVersion, readPublishedVersions, readVersions } from './resolve-preview-version.mjs';
 
 test('first publish uses the configured preview; later publishes increment numerically', () => {
   assert.equal(chooseVersion('0.1.0-preview.1', []), '0.1.0-preview.1');
@@ -58,4 +58,47 @@ test('feed failures and malformed responses stop publication', async () => {
     throw new Error('Network unavailable');
   }));
   await assert.rejects(readVersions('https://feed/index.json', ['Core'], {}, async () => Response.json({})));
+});
+
+function fakeFeeds(versionsByFeed) {
+  return async (url, options) => {
+    for (const [feed, versions] of Object.entries(versionsByFeed)) {
+      if (url === `${feed}/index.json`) return Response.json({
+        resources: [{ '@type': 'PackageBaseAddress/3.0.0', '@id': `${feed}/flat/` }],
+      });
+      if (url === `${feed}/flat/core/index.json`) {
+        if (feed.includes('nuget.pkg.github.com')) assert.match(options.headers.authorization, /^Basic /);
+        return versions === 404 ? new Response(null, { status: 404 }) : Response.json({ versions });
+      }
+    }
+    assert.fail(`Unexpected request ${url}`);
+  };
+}
+
+const env = { GITHUB_REPOSITORY_OWNER: 'owner', GITHUB_ACTOR: 'actor', GITHUB_TOKEN: 'token' };
+const nugetFeed = 'https://api.nuget.org/v3';
+const githubFeed = 'https://nuget.pkg.github.com/owner';
+
+test('previews are cumulative across NuGet.org and GitHub Packages for either target', async () => {
+  const behind = await readPublishedVersions(['Core'], env, fakeFeeds({
+    [nugetFeed]: ['0.1.0-preview.1', '0.1.0-preview.2'],
+    [githubFeed]: ['0.1.0-preview.1', '0.1.0-preview.2', '0.1.0-preview.3'],
+  }));
+  assert.equal(chooseVersion('0.1.0-preview.1', behind), '0.1.0-preview.4');
+  const ahead = await readPublishedVersions(['Core'], env, fakeFeeds({
+    [nugetFeed]: ['0.1.0-preview.5'],
+    [githubFeed]: ['0.1.0-preview.3'],
+  }));
+  assert.equal(chooseVersion('0.1.0-preview.1', ahead), '0.1.0-preview.6');
+  const firstNuget = await readPublishedVersions(['Core'], env, fakeFeeds({
+    [nugetFeed]: 404,
+    [githubFeed]: ['0.1.0-preview.12'],
+  }));
+  assert.equal(chooseVersion('0.1.0-preview.1', firstNuget), '0.1.0-preview.13');
+  assert.throws(() => chooseVersion('0.1.0-preview.1', behind, { suffix: 'preview.3' }));
+});
+
+test('the GitHub feed is always required', async () => {
+  await assert.rejects(readPublishedVersions(['Core'], {}, fakeFeeds({})));
+  await assert.rejects(readPublishedVersions(['Core'], env, fakeFeeds({ [nugetFeed]: [] })));
 });
