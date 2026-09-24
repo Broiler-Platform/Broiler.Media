@@ -75,30 +75,29 @@ function fakeFeeds(versionsByFeed) {
   };
 }
 
-const env = { GITHUB_REPOSITORY_OWNER: 'owner', GITHUB_ACTOR: 'actor', GITHUB_TOKEN: 'token' };
 const nugetFeed = 'https://api.nuget.org/v3';
-const githubFeed = 'https://nuget.pkg.github.com/owner';
 
-test('previews are cumulative across NuGet.org and GitHub Packages for either target', async () => {
-  const behind = await readPublishedVersions(['Core'], env, fakeFeeds({
+test('previews are resolved from NuGet.org', async () => {
+  const versions = await readPublishedVersions(['Core'], {}, fakeFeeds({
     [nugetFeed]: ['0.1.0-preview.1', '0.1.0-preview.2'],
-    [githubFeed]: ['0.1.0-preview.1', '0.1.0-preview.2', '0.1.0-preview.3'],
   }));
-  assert.equal(chooseVersion('0.1.0-preview.1', behind), '0.1.0-preview.4');
-  const ahead = await readPublishedVersions(['Core'], env, fakeFeeds({
+  assert.equal(chooseVersion('0.1.0-preview.1', versions), '0.1.0-preview.3');
+
+  const ahead = await readPublishedVersions(['Core'], {}, fakeFeeds({
     [nugetFeed]: ['0.1.0-preview.5'],
-    [githubFeed]: ['0.1.0-preview.3'],
   }));
   assert.equal(chooseVersion('0.1.0-preview.1', ahead), '0.1.0-preview.6');
-  const firstNuget = await readPublishedVersions(['Core'], env, fakeFeeds({
+
+  const empty = await readPublishedVersions(['Core'], {}, fakeFeeds({
     [nugetFeed]: 404,
-    [githubFeed]: ['0.1.0-preview.12'],
   }));
-  assert.equal(chooseVersion('0.1.0-preview.1', firstNuget), '0.1.0-preview.13');
-  assert.throws(() => chooseVersion('0.1.0-preview.1', behind, { suffix: 'preview.3' }));
+  assert.equal(chooseVersion('0.1.0-preview.1', empty), '0.1.0-preview.1');
+  assert.throws(() => chooseVersion('0.1.0-preview.1', versions, { suffix: 'preview.2' }));
 });
 
-test('the GitHub feed is always required', async () => {
-  await assert.rejects(readPublishedVersions(['Core'], {}, fakeFeeds({})));
-  await assert.rejects(readPublishedVersions(['Core'], env, fakeFeeds({ [nugetFeed]: [] })));
+test('reading published versions requires no GitHub credentials', async () => {
+  const versions = await readPublishedVersions(['Core'], {}, fakeFeeds({
+    [nugetFeed]: [],
+  }));
+  assert.deepEqual(versions, []);
 });

@@ -11,19 +11,13 @@ on:
         description: Resolved preview version for a publish run
         type: string
         default: ''
-      feed:
-        description: Restore feed for Broiler packages (auto, nuget, or github); a publish passes its destination
-        type: string
-        default: auto
 
 permissions:
   contents: read
-  packages: read
 
 env:
   PACKAGE_VERSION: ${{ inputs.package-version }}
-  FEED: ${{ inputs.feed || 'auto' }}
-  NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -56,11 +50,7 @@ jobs:
       - name: Test release scripts
         run: node --test eng/resolve-preview-version.test.mjs eng/select-restore-feed.test.mjs
 
-      # auto: NuGet.org when it hosts every pinned Broiler.* version, else GitHub Packages.
-      # A publish destination (nuget or github) must host them itself.
-      - name: Select restore feed (${{ inputs.feed || 'auto' }})
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify restore feed (NuGet.org)
         run: |
           node eng/select-restore-feed.mjs
           grep -o 'key="[^"]*" value="[^"]*"' NuGet.config

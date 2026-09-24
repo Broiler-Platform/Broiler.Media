@@ -59,17 +59,9 @@ export async function readVersions(source, packageIds, headers = {}, fetchImpl =
   return results.flat();
 }
 
-// Previews are cumulative across both feeds, whichever one is the destination:
-// with preview.3 on GitHub Packages and preview.2 on NuGet.org, either target gets preview.4.
-export async function readPublishedVersions(packageIds, env, fetchImpl = fetch) {
-  const { GITHUB_REPOSITORY_OWNER: owner, GITHUB_ACTOR: actor, GITHUB_TOKEN: token } = env;
-  if (!owner || !actor || !token) throw new Error('GitHub feed lookup requires owner, actor, and token.');
-  const authorization = `Basic ${Buffer.from(`${actor}:${token}`).toString('base64')}`;
-  const feeds = await Promise.all([
-    readVersions('https://api.nuget.org/v3/index.json', packageIds, {}, fetchImpl),
-    readVersions(`https://nuget.pkg.github.com/${owner}/index.json`, packageIds, { authorization }, fetchImpl),
-  ]);
-  return feeds.flat();
+// Previews are resolved from NuGet.org.
+export async function readPublishedVersions(packageIds, env = {}, fetchImpl = fetch) {
+  return readVersions('https://api.nuget.org/v3/index.json', packageIds, {}, fetchImpl);
 }
 
 function readPackages() {
@@ -98,7 +90,7 @@ async function main() {
   parsePreview(configured);
   const packageIds = packages.map(p => p.PackageId);
   const target = process.env.TARGET || 'nuget';
-  if (!['nuget', 'github'].includes(target)) throw new Error(`Unknown target '${target}'.`);
+  if (target !== 'nuget') throw new Error(`Unknown target '${target}'; only nuget is supported.`);
   const published = await readPublishedVersions(packageIds, process.env);
   const tag = process.env.GITHUB_EVENT_NAME === 'push'
     ? (process.env.GITHUB_REF || '').replace(/^refs\/tags\//, '') : '';

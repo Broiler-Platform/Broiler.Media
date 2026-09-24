@@ -1,102 +1,109 @@
 # CI, packages, and releases
 
-The five component repositories use the same workflow structure and release helpers.
-`Directory.Packages.props` centrally manages dependency versions. Release versions
-are separate: `eng/Broiler.Packaging.props` supplies defaults, with repository
-overrides in `Directory.Build.props`. Packages within one repository share a version;
-each repository advances its own preview sequence.
+The Broiler component repositories use a unified workflow structure and release helpers.
+`Directory.Packages.props` centrally manages external dependency versions. Release versions
+are configured separately: `eng/Broiler.Packaging.props` supplies suite-wide defaults, with
+component overrides in `Directory.Build.props`. Packages within this repository share a version;
+each component repository advances its own preview sequence.
 
 ## Build, test, and pack
 
-Use the .NET 10 SDK, Node.js 24 for release scripts, PowerShell 7 for packaging,
-and Bash (Git Bash on Windows) for the test runner.
+Requirements:
+- .NET 10 SDK (`10.0.x`)
+- Node.js 24 (for release validation scripts)
+- PowerShell 7 or Windows PowerShell 5.1 (for packaging and feed verification)
+- Bash (Git Bash on Windows or Linux bash) for the test runner
+
+Run the developer workflow:
 
 ```sh
 dotnet build Broiler.Media.slnx -c Release
 bash ./eng/run-tests.sh Release
-node --test eng/resolve-preview-version.test.mjs
+node --test eng/resolve-preview-version.test.mjs eng/select-restore-feed.test.mjs
 pwsh -File eng/pack.ps1
 ```
 
-Use `Debug` or `Release`; platform-suffixed solution configurations are obsolete.
-The test script runs the suites appropriate to the host. Input and Graphics build
-the host's platform suite explicitly because those projects are excluded from the
-normal solution build. DOM uses `dotnet test`; the other components use console runners.
+Use `Debug` or `Release` configuration. The test script executes all suites enabled for
+the host platform: the six portable test suites run on both Linux and Windows, while the
+`Broiler.Media.Video.MediaFoundation.Tests` suite runs on Windows. Tests are self-hosted console
+runners rather than unit-test framework assemblies, executing directly via `dotnet run`.
 
-`eng/pack.ps1` enumerates **every packable project**, including excluded providers,
-and verifies all 9 packages, versions, internal dependencies, README, icon,
-assemblies, API documentation, and symbols. Tests, demos, and diagnostic tools do
-not ship. Use Windows to pack the complete set. The output directory must contain
-no previous packages; choose `-Output <empty-directory>` for another run. Optional
-`-Version 0.1.0-preview.N` stamps the assembly and package versions together.
+`eng/pack.ps1` enumerates **every packable project** in the solution and verifies all 9 packages,
+versions, internal dependencies, README, icon, assemblies, XML API documentation, and symbol packages.
+Tests, demos, and diagnostic tools do not pack. Use Windows to pack the complete set.
+The output directory must contain no previous packages; specify `-Output <empty-directory>` for a
+custom run. Optional `-Version 0.1.0-preview.N` stamps the assembly and package versions together.
 
 ## Package feeds
 
-This repository maps `Broiler.*` packages to GitHub Packages and other packages to NuGet.org. Cross-repository dependencies use the versions in `Directory.Packages.props`; sibling source checkouts do not replace them.
-`NuGet.config` explicitly clears inherited sources, disabled-source settings, and
-source mappings so machine settings cannot silently change the feed selection.
+All package restore is performed strictly from **NuGet.org** (`https://api.nuget.org/v3/index.json`).
+GitHub Packages is not used.
 
-For GitHub Packages, set the process environment variable (never commit a token):
+`NuGet.config` explicitly clears inherited sources, disabled sources, and source mappings so machine
+or user-level settings cannot silently alter package resolution:
 
-```text
-NuGetPackageSourceCredentials_github=Username=<github-user>;Password=<PAT>;ValidAuthenticationTypes=Basic
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+  </packageSources>
+  <disabledPackageSources>
+    <clear />
+  </disabledPackageSources>
+  <packageSourceMapping>
+    <clear />
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+</configuration>
 ```
 
-The source name is exactly `github`. A local PAT needs `read:packages`. Workflows
-supply `GITHUB_TOKEN`; every upstream package must grant this repository access
-under **Manage Actions access**. `packages: read` alone does not grant access to
-another repository's private packages. See [GitHub's registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry).
+Cross-repository dependencies (such as `Broiler.Native.Windows`) are pinned in `Directory.Packages.props`
+and restore publicly from NuGet.org. No GitHub authentication tokens or `NuGetPackageSourceCredentials_*`
+environment variables are required for developer restores or CI builds.
 
-Native must be available before Media; Media before Input; and those dependencies
-before Graphics. DOM is independent. Selecting NuGet.org as the publish destination
-does not copy upstream packages there.
-The `Broiler.Native.Windows` and `Broiler.Native` versions Media references are
-already on NuGet.org, so a NuGet.org publish restores without GitHub Packages.
-
-CI selects the restore feed with `eng/select-restore-feed.mjs` before building. It
-reads the exact `Broiler.*` versions pinned in `Directory.Packages.props` and checks
-which feed hosts them. The workflow's `feed` input controls the choice:
-
-- `auto` (pull requests, pushes, manual CI): NuGet.org when it hosts every pinned
-  version, otherwise GitHub Packages. GitHub is only queried when NuGet.org is
-  incomplete, so a NuGet.org-complete build needs no package credentials.
-- `nuget` / `github` (Publish passes its destination): that feed must host every
-  pinned version, or the run stops before building and names what is missing.
-
-For `nuget`, `eng/NuGet.nuget-org.config` replaces `NuGet.config`; `github` keeps the
-repository `NuGet.config`. A NuGet.org release is therefore built, tested, and packed
-only against packages that exist on NuGet.org, matching the consumer restore check
-below. `node --test eng/select-restore-feed.test.mjs` covers the selection rules.
-## CI and Publish
-
-CI builds and tests `Release` on Ubuntu and Windows. Windows packs and attaches the
-complete package set as `nuget-packages`. Publish calls this same CI workflow with
-the resolved version and downloads its validated artifacts; it does not rebuild them.
-
-Run **Publish** manually with `target=github` or `target=nuget`. `dry-run=true` is
-the default: it selects a version, runs CI, packs, and verifies a fresh consumer
-restore without pushing anything. The restore uses an isolated cache, the local
-release artifacts, and only the destination feed (plus NuGet.org for public
-third-party dependencies). It catches missing transitive dependencies before upload.
-You can also run it locally:
+`eng/select-restore-feed.mjs` verifies that NuGet.org hosts every pinned `Broiler.*` package version
+before building. Run the test suite for feed selection with:
 
 ```sh
-pwsh -File eng/verify-feed.ps1 -Target github -Packages artifacts
+node --test eng/select-restore-feed.test.mjs
 ```
 
-Leave `version-suffix` empty to select the next unused `preview.N`. The resolver
-checks every shipping package on **both** NuGet.org and GitHub Packages, whichever
-feed is the destination, so the preview sequence is cumulative: with `preview.3` on
-GitHub Packages and `preview.2` on NuGet.org, the next publish to either feed is
-`preview.4`. The configured preview is the minimum; a partially published preview is skipped.
-An explicit suffix must be unused and at least the computed next preview. Feed
-errors stop the run. Publish runs are serialized within each repository.
+## CI and Publish
 
-A tag `v0.1.0-preview.N` publishes that exact version to NuGet.org after the same
-checks. Only `X.Y.Z-preview.N` versions on the configured release line are accepted;
-stable and other prerelease formats are rejected. After a partial upload, use a
-new preview rather than reusing the old tag. Dry runs do not reserve a version.
+### Continuous Integration (CI)
 
-NuGet.org publishing requires the repository secret `NUGET_TOKEN`. GitHub
-publishing uses `GITHUB_TOKEN`. Symbol packages are attached to the workflow artifact
-and pushed alongside packages to NuGet.org; GitHub receives `.nupkg` files only.
+The CI workflow (`.github/workflows/ci.yml`) runs on pushes to `main`, pull requests, and workflow dispatch:
+- Builds and runs tests in `Release` configuration across `ubuntu-latest` and `windows-latest`.
+- Runs release script tests (`eng/resolve-preview-version.test.mjs` and `eng/select-restore-feed.test.mjs`).
+- Verifies package restore from NuGet.org.
+- On Windows, packs and validates all 9 packages and 8 symbol packages (`.snupkg`).
+- Attaches the validated artifacts as `nuget-packages`.
+
+Publish calls this same CI workflow with the resolved release version and consumes the validated artifacts
+without rebuilding.
+
+### Publishing to NuGet.org
+
+Publishing is handled by `.github/workflows/publish.yml`, targeting **NuGet.org** exclusively:
+
+1. **Version Resolution:** `eng/resolve-preview-version.mjs` queries the NuGet.org registration/flat container
+   API to find the highest published preview number for the current `0.1.0-preview.*` line and computes the
+   next unused preview version (or honours an explicit `version-suffix`).
+2. **Validation and Pack:** Invokes the CI workflow with the computed version.
+3. **Consumer Verification:** `eng/verify-feed.ps1 -Target nuget` sets up an isolated temporary consumer
+   project and restores against NuGet.org and the local package artifacts with `--no-http-cache`. This verifies
+   that consumers will be able to restore the packages without missing dependencies.
+4. **Push:** When `dry-run` is false, pushes all `.nupkg` and matching `.snupkg` symbol packages to NuGet.org:
+
+```sh
+dotnet nuget push 'artifacts/*.nupkg' --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY"
+```
+
+Publishing requires the repository secret `NUGET_TOKEN` (NuGet.org API key).
+Publishing can also be triggered by pushing a tag matching `v0.1.0-preview.N`.
+Dry runs (`dry-run: true`, the default for manual workflow dispatches) perform all validations and attach
+packages as artifacts without pushing to NuGet.org.

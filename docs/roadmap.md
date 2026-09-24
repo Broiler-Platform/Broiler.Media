@@ -1,6 +1,6 @@
 # Broiler.Media Roadmap
 
-**Status:** Active preview. The seven runtime assemblies, managed image codecs,
+**Status:** Active preview. The eight runtime assemblies, managed image codecs,
 WAVE PCM decoder, and Windows Media Foundation video session are implemented.
 Only current residual work is listed here.
 
