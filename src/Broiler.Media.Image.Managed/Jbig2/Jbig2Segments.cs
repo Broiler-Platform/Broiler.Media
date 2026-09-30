@@ -6,6 +6,9 @@ using System.Globalization;
 namespace Broiler.Media.Image.Managed.Jbig2;
 
 /// <summary>One segment of a JBIG2 stream, located but not interpreted.</summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+// Broiler-Falsified-If: an intermediate region type (4, 36 or 40) is classed as immediate, so a bitmap meant for an auxiliary buffer is composited onto the page
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2Segment(
     uint Number,
     int Type,
@@ -14,6 +17,9 @@ public readonly record struct Jbig2Segment(
     int DataLength)
 {
     /// <summary>The segment type as ITU-T T.88 names it.</summary>
+    // Broiler-AI:           Origin=AI; Spec=T.88 s7.3; IP=None; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: segment type 38 is described as anything other than a generic region
+    // Broiler-Human:        PENDING
     public string Describe() => Type switch
     {
         0 => "symbol dictionary",
@@ -33,21 +39,39 @@ public readonly record struct Jbig2Segment(
     };
 
     /// <summary>True for the segment types that carry no image data to lose.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: segment type 53 (custom Huffman tables) is classed as structural, so a stream whose regions need those tables is decoded without them instead of refused
+    // Broiler-Human:        PENDING
     public bool IsStructural => Type is 48 or 49 or 50 or 51 or 52 or 62;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an intermediate generic region (type 36) is classed with the immediate ones, so its bitmap is composited onto the page instead of kept for the refinement that refers to it
+    // Broiler-Human:        PENDING
     public bool IsGenericRegion => Type is 36 or 38 or 39;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a pattern dictionary (type 16) is classed as a symbol dictionary and its bytes reach the symbol dictionary decoder
+    // Broiler-Human:        PENDING
     public bool IsSymbolDictionary => Type is 0;
 
     /// <summary>Every segment type that draws a region, whatever it draws it from.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a page information segment (type 48) is classed as a region, so its page width and height are read as a region extent when the page is sized
+    // Broiler-Human:        PENDING
     public bool IsRegion => Type is 4 or 6 or 7 or 20 or 22 or 23 or 36 or 38 or 39 or 40 or 42 or 43;
 
     /// <summary>
     /// An immediate refinement region, which corrects the page under it. Type 40
     /// is the intermediate form, kept in an auxiliary buffer rather than drawn.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: intermediate refinement type 40 is classed as immediate, so a refinement meant for an auxiliary buffer is drawn onto the page
+    // Broiler-Human:        PENDING
     public bool IsImmediateRefinementRegion => Type is 42 or 43;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a segment type other than 40, 42 or 43 is classed as a refinement region
+    // Broiler-Human:        PENDING
     public bool IsRefinementRegion => Type is 40 or 42 or 43;
 
     /// <summary>
@@ -55,6 +79,9 @@ public readonly record struct Jbig2Segment(
     /// intermediate form, which is kept in an auxiliary buffer for another
     /// segment to refer to rather than composited, and is not one of these.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: intermediate text region type 4 is classed as immediate, so its symbols are composited onto the page instead of kept for another segment
+    // Broiler-Human:        PENDING
     public bool IsImmediateTextRegion => Type is 6 or 7;
 
     /// <summary>
@@ -69,6 +96,8 @@ public readonly record struct Jbig2Segment(
 /// The region segment information every region type begins with: where it goes
 /// and how it combines with what is already there.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2RegionInfo(
     int Width,
     int Height,
@@ -77,6 +106,8 @@ public readonly record struct Jbig2RegionInfo(
     int CombinationOperator);
 
 /// <summary>A refinement region's header, read without decoding its data.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2RefinementRegion(
     Jbig2RegionInfo Info,
     int Template,
@@ -89,6 +120,8 @@ public readonly record struct Jbig2RefinementRegion(
 }
 
 /// <summary>A generic region's header, read without decoding its data.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2GenericRegion(
     int Width,
     int Height,
@@ -128,20 +161,38 @@ public readonly record struct Jbig2GenericRegion(
 /// walk, so it is bounded and checked rather than trusted.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+// Broiler-Falsified-If: a segment whose declared data length runs past the end of the stream is returned with DataStart plus DataLength beyond data.Length
+// Broiler-Human:        PENDING
 public static class Jbig2SegmentReader
 {
     /// <summary>Segments read before a stream is refused as unreasonable.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a stream of 4097 minimal segment headers is walked in full instead of refused
+    // Broiler-Human:        PENDING
     private const int MaxSegments = 4096;
 
     /// <summary>The region segment information every region type begins with.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a region segment with exactly 16 data bytes is read as region information instead of refused
+    // Broiler-Human:        PENDING
     private const int RegionInfoLength = 17;
 
     /// <summary>The position a region may declare before it is nonsense.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a region declaring an X or Y of 2^24 + 1 is accepted by TryReadRegionInfo
+    // Broiler-Human:        PENDING
     private const int MaxCoordinate = 1 << 24;
 
     /// <summary>Marks a segment whose length the header does not state.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a segment whose data length field is 0xFFFFFFFF is taken as a length instead of refused as unresolved
+    // Broiler-Human:        PENDING
     private const uint UnknownLength = 0xFFFFFFFFu;
 
+    // Broiler-AI:           Origin=AI; Spec=T.88 s7.2; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a header whose referred-to count, reference width, page field and length together run past the end of the stream is read instead of refused
+    // Broiler-Human:        PENDING
     public static bool TryRead(ReadOnlySpan<byte> data, out List<Jbig2Segment> segments, out string? error)
     {
         segments = [];
@@ -261,6 +312,9 @@ public static class Jbig2SegmentReader
     /// refinement region needs: it refines the page under it, so the page has to
     /// exist before the segment that corrects it is read.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; Spec=T.88 s7.4.1; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a region declaring a width or height of 0 or above 65536 is returned as valid region information
+    // Broiler-Human:        PENDING
     public static bool TryReadRegionInfo(ReadOnlySpan<byte> data, in Jbig2Segment segment, out Jbig2RegionInfo info)
     {
         info = default;
@@ -284,6 +338,9 @@ public static class Jbig2SegmentReader
     }
 
     /// <summary>Reads a refinement region segment's header, up to its data.</summary>
+    // Broiler-AI:           Origin=AI; Spec=T.88 s7.4.7; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a template-0 refinement segment that ends inside its four adaptive-pixel bytes is returned with a negative DataLength instead of refused
+    // Broiler-Human:        PENDING
     public static bool TryReadRefinementRegion(
         ReadOnlySpan<byte> data,
         in Jbig2Segment segment,
@@ -342,6 +399,9 @@ public static class Jbig2SegmentReader
     }
 
     /// <summary>Reads a generic region segment's header, up to its bitmap data.</summary>
+    // Broiler-AI:           Origin=AI; Spec=T.88 s7.4.6; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a non-MMR template-0 region with fewer than eight bytes after its flags is returned with a negative DataLength instead of refused
+    // Broiler-Human:        PENDING
     public static bool TryReadGenericRegion(
         ReadOnlySpan<byte> data,
         in Jbig2Segment segment,
@@ -416,6 +476,9 @@ public static class Jbig2SegmentReader
     /// black starts filled rather than blank. Ignoring it would silently drop the
     /// only statement some pages make about the space between their regions.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; Spec=T.88 s7.4.8; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a page information segment declaring height 0xFFFFFFFF yields a nonzero height instead of 0 for the caller to resolve
+    // Broiler-Human:        PENDING
     public static bool TryReadPageSize(
         ReadOnlySpan<byte> data,
         in Jbig2Segment segment,
@@ -449,6 +512,9 @@ public static class Jbig2SegmentReader
     }
 
     /// <summary>An inventory of what a stream contains, for the diagnostic.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: two segments of the same type are listed as two separate entries instead of one counted entry
+    // Broiler-Human:        PENDING
     public static string Describe(List<Jbig2Segment> segments)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -474,6 +540,9 @@ public static class Jbig2SegmentReader
         return string.Join(", ", parts);
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an offset within three bytes of the span end returns a value instead of throwing
+    // Broiler-Human:        PENDING
     private static uint ReadUInt32(ReadOnlySpan<byte> data, int offset) =>
         BinaryPrimitives.ReadUInt32BigEndian(data.Slice(offset, 4));
 }

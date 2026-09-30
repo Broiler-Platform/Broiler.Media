@@ -5,8 +5,14 @@ using System.IO;
 
 namespace Broiler.Media.Image.Managed.Gif;
 
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=10; Fingerprint=TBF
+// Broiler-Falsified-If: a GIF of a few kilobytes holding thousands of tiny frames on a large logical screen makes one decode allocate a full RGBA canvas copy per frame, with no MediaLimits frame, pixel or decoded-byte ceiling applied
+// Broiler-Human:        PENDING
 internal static class GifDecoder
 {
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s17; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an input shorter than six bytes, or one whose version reads other than 87a or 89a, is reported as a GIF
+    // Broiler-Human:        PENDING
     public static bool IsGif(ReadOnlySpan<byte> data) =>
         data.Length >= 6 &&
         data[0] == (byte)'G' &&
@@ -16,14 +22,23 @@ internal static class GifDecoder
         (data[4] == (byte)'7' || data[4] == (byte)'9') &&
         data[5] == (byte)'a';
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=10; Fingerprint=TBF
+    // Broiler-Falsified-If: a still decode of an animated GIF composites and copies every frame into the full canvas although only the first frame is returned
+    // Broiler-Human:        PENDING
     public static ImageBuffer Decode(ReadOnlySpan<byte> data) => DecodeAnimation(data).FirstFrame;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=10; Fingerprint=TBF
+    // Broiler-Falsified-If: a GIF that reaches its trailer, or the end of the data, without any image descriptor returns a sequence instead of raising FormatException
+    // Broiler-Human:        PENDING
     public static ImageSequence DecodeAnimation(ReadOnlySpan<byte> data)
     {
         GifData gif = Parse(data);
         return Composite(gif);
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a GIF without a NETSCAPE2.0 or ANIMEXTS1.0 loop extension decodes with a LoopCount other than 1
+    // Broiler-Human:        PENDING
     private sealed class GifData
     {
         public int Width;
@@ -33,6 +48,8 @@ internal static class GifDecoder
         public readonly List<GifFrame> Frames = [];
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private sealed class GifFrame
     {
         public int X;
@@ -48,6 +65,8 @@ internal static class GifDecoder
         public byte TransparentIndex;
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private readonly struct GraphicControl(int delayHundredths, int disposal, bool hasTransparency, byte transparentIndex)
     {
         public readonly int DelayHundredths = delayHundredths;
@@ -55,9 +74,15 @@ internal static class GifDecoder
         public readonly bool HasTransparency = hasTransparency;
         public readonly byte TransparentIndex = transparentIndex;
 
+        // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: a frame with no graphic control extension before it is decoded with a nonzero delay, a disposal method or a transparent index
+        // Broiler-Human:        PENDING
         public static GraphicControl Default => new(0, 0, false, 0);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=10; Fingerprint=TBF
+    // Broiler-Falsified-If: a block introducer other than 0x21, 0x2C or 0x3B, or an extension introducer as the last byte of the data, is skipped or read past the end instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static GifData Parse(ReadOnlySpan<byte> data)
     {
         if (!IsGif(data))
@@ -128,6 +153,9 @@ internal static class GifDecoder
         return gif;
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s20; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: a frame descriptor declaring 65535x32767 followed by a few bytes of image data allocates an index buffer of about 2 GiB before any pixel is decoded, as no MediaLimits.MaxImagePixels check precedes DecodeLzw
+    // Broiler-Human:        PENDING
     private static GifFrame ReadImage(ReadOnlySpan<byte> data, ref int offset, byte[]? globalPalette, GraphicControl control)
     {
         if (offset + 9 > data.Length)
@@ -172,6 +200,9 @@ internal static class GifDecoder
         };
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s23; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a graphic control extension with block size 4 but no terminator byte after its four data bytes is read past the end of the data instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static GraphicControl ReadGraphicControl(ReadOnlySpan<byte> data, ref int offset)
     {
         if (offset >= data.Length)
@@ -192,6 +223,9 @@ internal static class GifDecoder
         return new GraphicControl(delay, (packed >> 2) & 0x07, (packed & 0x01) != 0, transparentIndex);
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s26; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: an application extension whose identifier length runs past the end of the data is sliced beyond the input instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static void ReadApplicationExtension(ReadOnlySpan<byte> data, ref int offset, GifData gif)
     {
         if (offset >= data.Length)
@@ -212,6 +246,9 @@ internal static class GifDecoder
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=10; Fingerprint=TBF
+    // Broiler-Falsified-If: a GIF of a few kilobytes holding thousands of 1x1 frames on a 4096x4096 logical screen makes Composite clone the 64 MiB canvas once per frame, with no frame-count or decoded-byte ceiling
+    // Broiler-Human:        PENDING
     private static ImageSequence Composite(GifData gif)
     {
         byte[] canvas = new byte[checked(gif.Width * gif.Height * 4)];
@@ -242,6 +279,9 @@ internal static class GifDecoder
         return new ImageSequence(frames, gif.Width, gif.Height, gif.LoopCount);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a palette index at or beyond the frame's colour-table entry count is drawn from out-of-range palette bytes instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static void DrawFrame(byte[] canvas, int canvasWidth, GifFrame frame)
     {
         for (int y = 0; y < frame.Height; y++)
@@ -263,6 +303,9 @@ internal static class GifDecoder
             }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: a code above nextCode, or a dictionary chain longer than the 4097-entry stackalloc stack or reaching an entry not defined since the last clear code, is expanded instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static byte[] DecodeLzw(ReadOnlySpan<byte> data, int minimumCodeSize, int expectedPixels)
     {
         if (minimumCodeSize is < 1 or > 8)
@@ -358,6 +401,9 @@ internal static class GifDecoder
         return output;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: for an interlaced frame five rows high, the second stored row lands on a row other than 4 or the third on a row other than 2
+    // Broiler-Human:        PENDING
     private static byte[] Deinterlace(byte[] source, int width, int height)
     {
         byte[] dest = new byte[source.Length];
@@ -377,6 +423,9 @@ internal static class GifDecoder
         return dest;
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s19; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a colour-table flag with fewer than three bytes per declared entry remaining returns a short palette instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static byte[] ReadPalette(ReadOnlySpan<byte> data, ref int offset, int entries)
     {
         int byteCount = checked(entries * 3);
@@ -388,6 +437,9 @@ internal static class GifDecoder
         return palette;
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s15; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a sub-block whose size byte exceeds the bytes remaining, or a run of sub-blocks without its zero-length terminator, is returned instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static byte[] ReadSubBlocks(ReadOnlySpan<byte> data, ref int offset)
     {
         using var output = new MemoryStream();
@@ -409,8 +461,14 @@ internal static class GifDecoder
         return output.ToArray();
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a comment or unknown extension with no zero-length terminator lets parsing continue past the end of the data instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static void SkipSubBlocks(ReadOnlySpan<byte> data, ref int offset) => _ = ReadSubBlocks(data, ref offset);
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s25; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a plain text extension whose fixed block size exceeds the bytes remaining moves the offset past the end of the data instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static void SkipFixedExtensionAndSubBlocks(ReadOnlySpan<byte> data, ref int offset)
     {
         if (offset >= data.Length)
@@ -424,6 +482,9 @@ internal static class GifDecoder
         SkipSubBlocks(data, ref offset);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an offset one byte short of the end of the data returns a value instead of raising FormatException
+    // Broiler-Human:        PENDING
     private static int ReadUInt16(ReadOnlySpan<byte> data, int offset)
     {
         if (offset + 2 > data.Length)
@@ -432,6 +493,9 @@ internal static class GifDecoder
         return BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset, 2));
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: an application identifier differing from NETSCAPE2.0 only in its last byte, or of a different length, compares equal
+    // Broiler-Human:        PENDING
     private static bool AsciiEquals(ReadOnlySpan<byte> data, string value)
     {
         if (data.Length != value.Length)
@@ -446,6 +510,9 @@ internal static class GifDecoder
         return true;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=6; Fingerprint=TBF
+    // Broiler-Falsified-If: for a disposal-3 frame at a nonzero x, the saved rows are read from a canvas offset other than ((y + row) * canvasWidth + x) * 4, so the restored area differs from its pre-frame pixels
+    // Broiler-Human:        PENDING
     private static byte[] SnapshotRegion(byte[] canvas, int canvasWidth, int x, int y, int width, int height)
     {
         byte[] snapshot = new byte[checked(width * height * 4)];
@@ -454,18 +521,27 @@ internal static class GifDecoder
         return snapshot;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a snapshot taken at (x, y) is written back at a different canvas offset than SnapshotRegion read it from
+    // Broiler-Human:        PENDING
     private static void RestoreRegion(byte[] canvas, int canvasWidth, byte[] snapshot, int x, int y, int width, int height)
     {
         for (int row = 0; row < height; row++)
             Array.Copy(snapshot, row * width * 4, canvas, ((y + row) * canvasWidth + x) * 4, width * 4);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: disposal 2 on a frame at (x, y) clears pixels outside the frame rectangle or leaves part of it opaque
+    // Broiler-Human:        PENDING
     private static void ClearRegion(byte[] canvas, int canvasWidth, int x, int y, int width, int height)
     {
         for (int row = 0; row < height; row++)
             Array.Clear(canvas, ((y + row) * canvasWidth + x) * 4, width * 4);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a code requested when fewer bits remain than its width is assembled from bytes past the end of the image data instead of returning -1
+    // Broiler-Human:        PENDING
     private ref struct BitReader
     {
         private readonly ReadOnlySpan<byte> _data;
@@ -473,6 +549,9 @@ internal static class GifDecoder
 
         public BitReader(ReadOnlySpan<byte> data) => _data = data;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: a code requested when fewer bits remain than its width is assembled from bytes past the end of the image data instead of returning -1
+        // Broiler-Human:        PENDING
         public int Read(int bitCount)
         {
             if (_bitOffset + bitCount > _data.Length * 8)
@@ -494,6 +573,9 @@ internal static class GifDecoder
     /// Reads the logical screen descriptor, which the format places immediately
     /// after the six-byte signature at a fixed offset.
     /// </summary>
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s18; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: an input of exactly ten bytes carrying a GIF signature throws instead of returning false
+    // Broiler-Human:        PENDING
     public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
     {
         info = null;

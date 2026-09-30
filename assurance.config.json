@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "component": "Broiler.Media",
+  "projects": [
+    "src/Broiler.Media/Broiler.Media.csproj",
+    "src/Broiler.Media.Audio/Broiler.Media.Audio.csproj",
+    "src/Broiler.Media.Audio.Managed/Broiler.Media.Audio.Managed.csproj",
+    "src/Broiler.Media.Video/Broiler.Media.Video.csproj",
+    "src/Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj",
+    "src/Broiler.Media.Video.MediaFoundation/Broiler.Media.Video.MediaFoundation.csproj",
+    "src/Broiler.Media.Image/Broiler.Media.Image.csproj",
+    "src/Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj",
+    "src/Broiler.Media.All/Broiler.Media.All.csproj"
+  ],
+  "exemptionPredicate": "owning-component",
+  "exclude": [],
+  "spdx": {
+    "copyright": ["2026 Broiler Platform contributors"],
+    "license": "Apache-2.0"
+  },
+  "spdxOverrides": [],
+  "regenerateCommand": "dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance generate --root Broiler.Media"
+}

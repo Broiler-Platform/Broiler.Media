@@ -4,6 +4,8 @@ using System.IO;
 namespace Broiler.Media.Image.Managed.Compression;
 
 /// <summary>How a PackBits decode ended.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum PackBitsOutcome
 {
     Decoded,
@@ -12,6 +14,8 @@ public enum PackBitsOutcome
 }
 
 /// <summary>The result of decoding one PackBits stream.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct PackBitsResult(
     PackBitsOutcome Outcome,
     byte[]? Data,
@@ -20,8 +24,14 @@ public readonly record struct PackBitsResult(
 /// <summary>
 /// Byte-run-1 / PackBits (Macintosh / TIFF Compression 32773 / PDF RunLengthDecode).
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+// Broiler-Falsified-If: a repeat run takes the output past maxBytes before TooLarge is returned
+// Broiler-Human:        PENDING
 public static class PackBitsDecoder
 {
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a literal run whose length byte claims more bytes than remain is copied from past the end of the input instead of returning Malformed
+    // Broiler-Human:        PENDING
     public static PackBitsResult Decode(
         ReadOnlySpan<byte> input,
         long maxBytes = 64 * 1024 * 1024)

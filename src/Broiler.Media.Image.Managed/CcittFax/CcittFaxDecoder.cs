@@ -4,6 +4,8 @@ using System.Collections.Generic;
 namespace Broiler.Media.Image.Managed.CcittFax;
 
 /// <summary>How a fax stream is coded, as the PDF <c>K</c> parameter or fax mode selects it.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum CcittCoding
 {
     /// <summary><c>K = 0</c>: every line one-dimensional (Modified Huffman).</summary>
@@ -17,6 +19,8 @@ public enum CcittCoding
 }
 
 /// <summary>What the stream parameters say about the fax data.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct CcittFaxOptions(
     CcittCoding Coding,
     int Columns,
@@ -26,6 +30,8 @@ public readonly record struct CcittFaxOptions(
     bool ExpectsEndOfLine);
 
 /// <summary>How a decode ended.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum CcittFaxOutcome
 {
     Decoded,
@@ -34,6 +40,8 @@ public enum CcittFaxOutcome
 }
 
 /// <summary>The result of decoding one fax stream.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct CcittFaxResult(
     CcittFaxOutcome Outcome,
     byte[]? Rows,
@@ -63,11 +71,20 @@ public readonly record struct CcittFaxResult(
 /// bit reader, which is the shape of parser that runs away if it is allowed to.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+// Broiler-Falsified-If: decoded output grows past maxBytes, or is pre-allocated past it from the declared Rows, without Decode returning TooLarge
+// Broiler-Human:        PENDING
 public static class CcittFaxDecoder
 {
     /// <summary>Rows decoded before an unbounded stream is refused.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a stream that declares no Rows keeps decoding lines past 65536 rows
+    // Broiler-Human:        PENDING
     private const int RowCeiling = 1 << 16;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a declared Rows whose Rows times the row stride exceeds maxBytes allocates or decodes output instead of returning TooLarge
+    // Broiler-Human:        PENDING
     public static CcittFaxResult Decode(ReadOnlySpan<byte> data, in CcittFaxOptions options, long maxBytes)
     {
         if (options.Columns is <= 0 or > (1 << 16))
@@ -157,6 +174,9 @@ public static class CcittFaxDecoder
     /// optional in PDF data and mandatory in some producers' output, so they are
     /// skipped wherever they appear rather than required or refused.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: in mixed coding SkipFill consumes more than one end-of-line code, so the tag bit of the line is read from inside the next code
+    // Broiler-Human:        PENDING
     private static void SkipFill(BitReader reader, in CcittFaxOptions options)
     {
         while (reader.TryPeekEndOfLine())
@@ -173,6 +193,9 @@ public static class CcittFaxDecoder
     }
 
     /// <summary>Decodes a line as alternating white and black runs.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: runs summing past Columns record a changing element beyond Columns instead of clamping it to the line end
+    // Broiler-Human:        PENDING
     private static bool DecodeOneDimensionalLine(BitReader reader, List<int> coding, int columns)
     {
         int position = 0;
@@ -192,6 +215,9 @@ public static class CcittFaxDecoder
     }
 
     /// <summary>Decodes a line as differences from the line above it.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a line adds more than 2 * Columns + 2 changing elements without returning false
+    // Broiler-Human:        PENDING
     private static bool DecodeTwoDimensionalLine(BitReader reader, List<int> reference, List<int> coding, int columns)
     {
         int a0 = -1;
@@ -265,6 +291,9 @@ public static class CcittFaxDecoder
     /// modes are defined against: <c>b1</c> is the first one right of <c>a0</c>
     /// with the opposite colour to the current run, and <c>b2</c> the one after.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a 65536-column line of one-bit V0 codes over a reference line of 65536 changing elements takes seconds, because every call rescans the reference from index 0
+    // Broiler-Human:        PENDING
     private static (int B1, int B2) Transitions(List<int> reference, int a0, bool white, int columns)
     {
         int index = 0;
@@ -282,6 +311,9 @@ public static class CcittFaxDecoder
     }
 
     /// <summary>Reads one run, following makeup codes until a terminating one.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a makeup code (run 64 or more) ends the run instead of being followed by a terminating code
+    // Broiler-Human:        PENDING
     private static bool TryReadRun(BitReader reader, bool white, out int total)
     {
         total = 0;
@@ -300,6 +332,9 @@ public static class CcittFaxDecoder
         return false;
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: the 12-bit end-of-line code does not resolve to ModeEndOfLine
+    // Broiler-Human:        PENDING
     private static bool TryReadMode(BitReader reader, out int mode) =>
         TryReadCode(reader, CcittFaxTables.Modes, CcittFaxTables.MaxModeCodeLength, out mode);
 
@@ -307,6 +342,9 @@ public static class CcittFaxDecoder
     /// Reads one variable-length code a bit at a time. These are prefix codes, so
     /// the first length at which the accumulated bits resolve is the answer.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: bits matching no table entry within maxLength return true, or more than maxLength bits are consumed
+    // Broiler-Human:        PENDING
     private static bool TryReadCode(BitReader reader, IReadOnlyDictionary<int, int> table, int maxLength, out int value)
     {
         value = 0;
@@ -326,6 +364,9 @@ public static class CcittFaxDecoder
     }
 
     /// <summary>Paints a line's changing elements into packed one-bit pixels.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a changing element beyond Columns sets a bit in the bytes of the following row
+    // Broiler-Human:        PENDING
     private static void Paint(List<byte> output, List<int> coding, int columns, int stride, bool blackIs1)
     {
         int start = output.Count;
@@ -364,17 +405,29 @@ public static class CcittFaxDecoder
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: Failed reports an outcome other than Malformed
+    // Broiler-Human:        PENDING
     private static CcittFaxResult Failed(string reason) =>
         new(CcittFaxOutcome.Malformed, null, 0, reason);
 
     /// <summary>A most-significant-bit-first reader over the encoded data.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a read at or past bit _data.Length * 8 returns a bit instead of reporting the end of the data
+    // Broiler-Human:        PENDING
     private sealed class BitReader(ReadOnlySpan<byte> data)
     {
         private readonly byte[] _data = data.ToArray();
         private int _bit;
 
+        // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: HasMore is true after all _data.Length * 8 bits have been consumed
+        // Broiler-Human:        PENDING
         public bool HasMore => _bit < _data.Length * 8;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: TryReadBit returns true, or indexes _data, once _bit reaches _data.Length * 8
+        // Broiler-Human:        PENDING
         public bool TryReadBit(out int bit)
         {
             if (_bit >= _data.Length * 8)
@@ -388,8 +441,14 @@ public static class CcittFaxDecoder
             return true;
         }
 
+        // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: a position already on a byte boundary moves forward eight bits, skipping a byte of coded data
+        // Broiler-Human:        PENDING
         public void AlignToByte() => _bit = (_bit + 7) & ~7;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+        // Broiler-Falsified-If: the read position after a peek differs from the position before it
+        // Broiler-Human:        PENDING
         public bool TryPeekEndOfLine()
         {
             int saved = _bit;
@@ -419,6 +478,9 @@ public static class CcittFaxDecoder
             }
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+        // Broiler-Falsified-If: SkipEndOfLine consumes a bit after the first one bit, eating the start of the code of the next line
+        // Broiler-Human:        PENDING
         public void SkipEndOfLine()
         {
             while (TryReadBit(out int bit))

@@ -5,16 +5,27 @@ using System.IO;
 
 namespace Broiler.Media.Image.Managed.Gif;
 
+// Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=6; Fingerprint=TBF
+// Broiler-Falsified-If: an animation whose later frame is transparent where an earlier frame was opaque decodes with the earlier frame's colours showing through, because every frame is written with disposal method 0
+// Broiler-Human:        PENDING
 internal static class GifEncoder
 {
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a transparent pixel is written with an index other than the palette slot BuildExact and BuildCube reserve for transparency
+    // Broiler-Human:        PENDING
     private const int TransparentIndex = 0;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=6; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     public static byte[] Encode(ImageBuffer buffer)
     {
         ArgumentNullException.ThrowIfNull(buffer);
         return EncodeAnimation(ImageSequence.Static(buffer));
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=6; Fingerprint=TBF
+    // Broiler-Falsified-If: a sequence more than 65535 pixels wide, or a frame whose size differs from the canvas, is written instead of raising an exception
+    // Broiler-Human:        PENDING
     public static byte[] EncodeAnimation(ImageSequence sequence)
     {
         ArgumentNullException.ThrowIfNull(sequence);
@@ -57,6 +68,9 @@ internal static class GifEncoder
         return output.ToArray();
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=6; Fingerprint=TBF
+    // Broiler-Falsified-If: an opaque pixel is mapped to an index whose colour-table entry differs from its RGB value while the exact palette is in use
+    // Broiler-Human:        PENDING
     private sealed class GifPalette
     {
         private readonly Dictionary<int, byte>? _exactMap;
@@ -76,6 +90,9 @@ internal static class GifEncoder
 
         public bool HasTransparency { get; }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=6; Fingerprint=TBF
+        // Broiler-Falsified-If: a sequence with exactly 256 opaque colours and no pixel below alpha 128 is quantized to the 6x6x6 cube instead of an exact palette
+        // Broiler-Human:        PENDING
         public static GifPalette Build(ImageSequence sequence)
         {
             bool hasTransparency = false;
@@ -104,6 +121,9 @@ internal static class GifEncoder
             return BuildCube(hasTransparency);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+        // Broiler-Falsified-If: an opaque pixel is mapped to an index whose colour-table entry differs from its RGB value while the exact palette is in use
+        // Broiler-Human:        PENDING
         public byte[] Map(ImageBuffer buffer)
         {
             byte[] indices = new byte[checked(buffer.Width * buffer.Height)];
@@ -127,6 +147,9 @@ internal static class GifEncoder
             return indices;
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=2; Fingerprint=TBF
+        // Broiler-Falsified-If: with transparency present, the first opaque colour is assigned index 0, colliding with the transparent slot
+        // Broiler-Human:        PENDING
         private static GifPalette BuildExact(IEnumerable<int> colors, bool hasTransparency)
         {
             var palette = new List<byte>();
@@ -151,6 +174,9 @@ internal static class GifEncoder
             return new GifPalette(PadColorTable(palette), hasTransparency, map, useCube: false, cubeOffset: 0);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=TBF
+        // Broiler-Falsified-If: with transparency present, cube entry (r, g, b) is stored at a table index other than 1 + r*36 + g*6 + b, so the indices Map writes select the wrong colour
+        // Broiler-Human:        PENDING
         private static GifPalette BuildCube(bool hasTransparency)
         {
             var palette = new List<byte>();
@@ -174,6 +200,9 @@ internal static class GifEncoder
             return new GifPalette(PadColorTable(palette), hasTransparency, exactMap: null, useCube: true, offset);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=TBF
+        // Broiler-Falsified-If: a palette of three colours yields a table of other than four entries, or any table whose entry count is not a power of two
+        // Broiler-Human:        PENDING
         private static byte[] PadColorTable(List<byte> palette)
         {
             int entries = Math.Max(2, (palette.Count + 2) / 3);
@@ -186,11 +215,20 @@ internal static class GifEncoder
             return table;
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: some RGB triple maps to a cube index outside 0 to 215
+        // Broiler-Human:        PENDING
         private static int CubeIndex(byte r, byte g, byte b) => Quantize6(r) * 36 + Quantize6(g) * 6 + Quantize6(b);
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: a channel value of 255 quantizes to a level other than 5, or 0 to a level other than 0
+        // Broiler-Human:        PENDING
         private static int Quantize6(byte value) => (value * 5 + 127) / 255;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: an index sequence encoded at some minimum code size decodes through GifDecoder.DecodeLzw at that size to different indices
+    // Broiler-Human:        PENDING
     private static byte[] EncodeLiteralLzw(ReadOnlySpan<byte> indices, int minimumCodeSize)
     {
         int clearCode = 1 << minimumCodeSize;
@@ -209,12 +247,18 @@ internal static class GifEncoder
         return writer.ToArray();
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a frame lasting longer than 655.35 seconds, or a negative duration, yields a delay outside 0 to 65535
+    // Broiler-Human:        PENDING
     private static int DelayHundredths(ImageFrame frame)
     {
         double hundredths = Math.Round(frame.Duration.TotalSeconds * 100, MidpointRounding.AwayFromZero);
         return (int)Math.Clamp(hundredths, 0, ushort.MaxValue);
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s23; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an animation whose later frame is transparent where an earlier frame was opaque decodes with the earlier frame's colours showing through, because the packed byte always declares disposal method 0
+    // Broiler-Human:        PENDING
     private static void WriteGraphicControl(Stream output, int delayHundredths, bool hasTransparency)
     {
         output.WriteByte(0x21);
@@ -226,6 +270,9 @@ internal static class GifEncoder
         output.WriteByte(0);
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s20; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the descriptor declares a local colour table or interlacing although neither is written
+    // Broiler-Human:        PENDING
     private static void WriteImageDescriptor(Stream output, int width, int height)
     {
         output.WriteByte(0x2C);
@@ -236,6 +283,9 @@ internal static class GifEncoder
         output.WriteByte(0);
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s26; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a loop count above 65535 is written as a wrapped 16-bit value instead of 65535
+    // Broiler-Human:        PENDING
     private static void WriteLoopExtension(Stream output, int loopCount)
     {
         output.WriteByte(0x21);
@@ -248,6 +298,9 @@ internal static class GifEncoder
         output.WriteByte(0);
     }
 
+    // Broiler-AI:           Origin=AI; Spec=GIF89a s15; IP=Low; Security=Low; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: a 255-byte payload is written as anything other than one 255-byte sub-block followed by a single zero terminator
+    // Broiler-Human:        PENDING
     private static void WriteSubBlocks(Stream output, ReadOnlySpan<byte> data)
     {
         int offset = 0;
@@ -262,12 +315,17 @@ internal static class GifEncoder
         output.WriteByte(0);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private static void WriteAscii(Stream output, string value)
     {
         foreach (char ch in value)
             output.WriteByte((byte)ch);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a value above 65535 is written as its low 16 bits into the 2-byte stackalloc buffer instead of raising OverflowException
+    // Broiler-Human:        PENDING
     private static void WriteUInt16(Stream output, int value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -275,6 +333,9 @@ internal static class GifEncoder
         output.Write(buffer);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a colour-table size of 256 yields other than 8, so the header's table-size code disagrees with the table written
+    // Broiler-Human:        PENDING
     private static int Log2(int value)
     {
         int log = 0;
@@ -283,12 +344,18 @@ internal static class GifEncoder
         return log;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: codes written least-significant bit first are read back by GifDecoder.BitReader as different values
+    // Broiler-Human:        PENDING
     private sealed class BitWriter
     {
         private readonly MemoryStream _stream = new();
         private int _bitBuffer;
         private int _bitCount;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=TBF
+        // Broiler-Falsified-If: codes written least-significant bit first are read back by GifDecoder.BitReader as different values
+        // Broiler-Human:        PENDING
         public void Write(int code, int bitCount)
         {
             _bitBuffer |= code << _bitCount;
@@ -301,6 +368,9 @@ internal static class GifEncoder
             }
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=TBF
+        // Broiler-Falsified-If: a trailing partial byte of fewer than eight bits is dropped from the returned array
+        // Broiler-Human:        PENDING
         public byte[] ToArray()
         {
             if (_bitCount > 0)

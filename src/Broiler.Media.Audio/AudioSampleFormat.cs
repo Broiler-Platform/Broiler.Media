@@ -1,5 +1,7 @@
 namespace Broiler.Media.Audio;
 
+// Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum AudioSampleFormat
 {
     PcmS16Interleaved,

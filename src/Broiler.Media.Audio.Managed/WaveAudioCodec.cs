@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Broiler.Media.Audio.Managed;
 
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+// Broiler-Falsified-If: a RIFF/WAVE stream whose data chunk holds more samples than MaxDecodedSamples is decoded into audio buffers instead of failing with LimitExceeded
+// Broiler-Human:        PENDING
 public sealed class WaveAudioCodec : AudioCodec
 {
     public static MediaCodecDescriptor CodecDescriptor { get; } = new(new MediaCodecId("broiler.audio.wave.managed"),
@@ -16,8 +19,14 @@ public sealed class WaveAudioCodec : AudioCodec
                 [".wav", ".wave"]),
         ]);
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the codec registers under a descriptor other than CodecDescriptor, so catalog selection by id or MIME type misses it
+    // Broiler-Human:        PENDING
     public WaveAudioCodec() : base(CodecDescriptor) { }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a prefix shorter than 12 bytes, or one with RIFF at offset 0 but not WAVE at offset 8, is reported as a certain WAVE match
+    // Broiler-Human:        PENDING
     public override ValueTask<MediaProbeResult> ProbeAsync(MediaProbeRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -32,6 +41,9 @@ public sealed class WaveAudioCodec : AudioCodec
         return ValueTask.FromResult(result);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a stream with no data chunk, or with a data chunk ahead of its fmt chunk, returns an AudioStreamInfo instead of throwing MediaException with InvalidData
+    // Broiler-Human:        PENDING
     public override async ValueTask<AudioStreamInfo> GetInfoAsync(MediaInput input,
         AudioDecodeOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -44,6 +56,9 @@ public sealed class WaveAudioCodec : AudioCodec
         return data.ToStreamInfo();
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a malformed or truncated WAVE stream makes this throw something other than MediaException, or return, without FailAsync having been called on the output
+    // Broiler-Human:        PENDING
     public override async ValueTask DecodeAsync(MediaInput input, IAudioOutput output,
         AudioDecodeOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -78,6 +93,9 @@ public sealed class WaveAudioCodec : AudioCodec
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a data length that is not a multiple of BlockAlign leaves remainingBytes positive with a frame count of 0, so the read loop never ends
+    // Broiler-Human:        PENDING
     private static async ValueTask DecodeDataAsync(WaveReader reader, WaveDataChunk data, IAudioOutput output,
         AudioDecodeOptions options, CancellationToken cancellationToken)
     {
@@ -109,6 +127,9 @@ public sealed class WaveAudioCodec : AudioCodec
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: a converted sample is written at an offset other than its sample index times the output sample size, so channels come out of interleave order
+    // Broiler-Human:        PENDING
     private static byte[] ConvertSamples(ReadOnlySpan<byte> source, WaveFormat format, AudioSampleFormat outputFormat, int frameCount)
     {
         int sampleCount = checked(frameCount * format.Channels);
@@ -136,6 +157,9 @@ public sealed class WaveAudioCodec : AudioCodec
         return output;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the unsigned 8-bit byte 0x00 is read as anything other than -128, or a 16, 24 or 32-bit sample is read in big-endian byte order
+    // Broiler-Human:        PENDING
     private static int ReadPcmSample(ReadOnlySpan<byte> source, int bitsPerSample) => bitsPerSample switch
     {
         8 => source[0] - 128,
@@ -145,8 +169,14 @@ public sealed class WaveAudioCodec : AudioCodec
         _ => throw Unsupported($"Unsupported PCM bit depth {bitsPerSample}."),
     };
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the 24-bit value 0x800000 comes back as 8388608 instead of -8388608
+    // Broiler-Human:        PENDING
     private static int SignExtend24(int value) => (value & 0x800000) != 0 ? value | unchecked((int)0xFF000000) : value;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a full-scale negative 24-bit or 32-bit sample throws OverflowException from the checked cast instead of mapping to -32768
+    // Broiler-Human:        PENDING
     private static short ConvertToInt16(int sample, int bitsPerSample) => bitsPerSample switch
     {
         8 => checked((short)(sample << 8)),
@@ -156,6 +186,9 @@ public sealed class WaveAudioCodec : AudioCodec
         _ => throw Unsupported($"Unsupported PCM bit depth {bitsPerSample}."),
     };
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a full-scale negative sample of any supported bit depth does not convert to exactly -1.0f
+    // Broiler-Human:        PENDING
     private static float ConvertToFloat(int sample, int bitsPerSample) => bitsPerSample switch
     {
         8 => sample / 128f,
@@ -165,15 +198,24 @@ public sealed class WaveAudioCodec : AudioCodec
         _ => throw Unsupported($"Unsupported PCM bit depth {bitsPerSample}."),
     };
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a frame count whose product with TicksPerSecond exceeds the range of long wraps to a negative timestamp instead of throwing OverflowException
+    // Broiler-Human:        PENDING
     private static TimeSpan FramesToTime(long frames, int sampleRate) =>
         TimeSpan.FromTicks(checked(frames * TimeSpan.TicksPerSecond / sampleRate));
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: PcmU8Interleaved, PcmS24Interleaved or PcmS32Interleaved passes as a requested output format
+    // Broiler-Human:        PENDING
     private static void ValidateOutputFormat(AudioSampleFormat format)
     {
         if (format is not (AudioSampleFormat.PcmS16Interleaved or AudioSampleFormat.Float32Interleaved))
             throw Unsupported($"WAVE decode cannot output {format}.");
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an exception thrown by the output from FailAsync replaces the original decode exception seen by the caller of DecodeAsync
+    // Broiler-Human:        PENDING
     private static async ValueTask SignalFailureAsync(IAudioOutput output, MediaError error)
     {
         try
@@ -185,20 +227,35 @@ public sealed class WaveAudioCodec : AudioCodec
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: the exception built here carries an error code other than InvalidData or omits the WAVE codec id
+    // Broiler-Human:        PENDING
     private static MediaException Invalid(string message, long? byteOffset = null) =>
         new(new MediaError(MediaErrorCode.InvalidData, message, CodecDescriptor.Id, byteOffset));
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: the exception built here carries an error code other than UnsupportedFormat or omits the WAVE codec id
+    // Broiler-Human:        PENDING
     private static MediaException Unsupported(string message, long? byteOffset = null) =>
         new(new MediaError(MediaErrorCode.UnsupportedFormat, message, CodecDescriptor.Id, byteOffset));
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: the exception built here carries an error code other than LimitExceeded or omits the WAVE codec id
+    // Broiler-Human:        PENDING
     private static MediaException Limit(string message, long? byteOffset = null) =>
         new(new MediaError(MediaErrorCode.LimitExceeded, message, CodecDescriptor.Id, byteOffset));
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a chunk size field larger than the bytes left in the stream is skipped or read past without InvalidData or LimitExceeded being thrown
+    // Broiler-Human:        PENDING
     private sealed class WaveReader(Stream stream, MediaLimits limits)
     {
         private readonly byte[] _scratch = new byte[16];
         private long _offset;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+        // Broiler-Falsified-If: a chunk whose declared padded size would take the offset past MaxEncodedBytes is skipped or read instead of refused with LimitExceeded
+        // Broiler-Human:        PENDING
         public async ValueTask<WaveDataChunk> ReadToDataAsync(CancellationToken cancellationToken)
         {
             await ReadExactlyAsync(_scratch.AsMemory(0, 12), "RIFF header", cancellationToken).ConfigureAwait(false);
@@ -238,6 +295,9 @@ public sealed class WaveAudioCodec : AudioCodec
             throw Invalid("WAVE stream does not contain a data chunk.", _offset);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+        // Broiler-Falsified-If: a stream that returns 0 before the buffer is full lets the method return normally with a partly filled buffer
+        // Broiler-Human:        PENDING
         public async ValueTask ReadExactlyAsync(Memory<byte> buffer, string context, CancellationToken cancellationToken)
         {
             int total = 0;
@@ -253,6 +313,9 @@ public sealed class WaveAudioCodec : AudioCodec
             }
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+        // Broiler-Falsified-If: a stream that ends after 1 to 7 bytes of a chunk header returns false as a clean end instead of throwing InvalidData
+        // Broiler-Human:        PENDING
         private async ValueTask<bool> TryReadChunkHeaderAsync(CancellationToken cancellationToken)
         {
             int total = 0;
@@ -276,6 +339,9 @@ public sealed class WaveAudioCodec : AudioCodec
             return true;
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+        // Broiler-Falsified-If: a fmt chunk whose block alignment differs from the channel count times the bytes per sample is accepted
+        // Broiler-Human:        PENDING
         private async ValueTask<WaveFormat> ReadFormatAsync(uint chunkSize, CancellationToken cancellationToken)
         {
             if (chunkSize < 16)
@@ -328,6 +394,9 @@ public sealed class WaveAudioCodec : AudioCodec
             return new WaveFormat((int)sampleRate, channels, bitsPerSample, blockAlign, (int)byteRate, sourceBytesPerSample);
         }
 
+        // Broiler-AI:           Origin=AI; Spec=ADR-0002; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: an 8-bit PCM data chunk no larger than MaxDecodedBytes is accepted although its Float32 output is four times MaxDecodedBytes
+        // Broiler-Human:        PENDING
         private WaveDataChunk CreateDataChunk(WaveFormat format, uint dataByteLength)
         {
             if (dataByteLength % format.BlockAlign != 0)
@@ -344,6 +413,9 @@ public sealed class WaveAudioCodec : AudioCodec
             return new WaveDataChunk(format, dataByteLength, totalFrames);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+        // Broiler-Falsified-If: on a seekable stream a skip longer than Length minus Position moves Position past the end instead of throwing InvalidData
+        // Broiler-Human:        PENDING
         private async ValueTask SkipAsync(long byteCount, CancellationToken cancellationToken)
         {
             if (byteCount < 0)
@@ -379,12 +451,18 @@ public sealed class WaveAudioCodec : AudioCodec
             }
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: an offset of MaxEncodedBytes plus one is allowed through without LimitExceeded
+        // Broiler-Human:        PENDING
         private void EnsureActualEncodedBytes()
         {
             if (_offset > limits.MaxEncodedBytes)
                 throw Limit("WAVE input exceeds the configured encoded-byte limit.", _offset);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: a declared size that puts the current offset plus the size exactly one byte past MaxEncodedBytes is allowed through without LimitExceeded
+        // Broiler-Human:        PENDING
         private void EnsureDeclaredEncodedBytes(long byteCount, string context)
         {
             if (byteCount < 0 || _offset + byteCount > limits.MaxEncodedBytes)
@@ -392,6 +470,9 @@ public sealed class WaveAudioCodec : AudioCodec
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a 24-bit format reports a source format other than PcmS24Interleaved
+    // Broiler-Human:        PENDING
     private readonly struct WaveFormat(int sampleRate, int channels, int bitsPerSample,
         int blockAlign, int byteRate, int sourceBytesPerSample)
     {
@@ -407,6 +488,9 @@ public sealed class WaveAudioCodec : AudioCodec
 
         public int SourceBytesPerSample { get; } = sourceBytesPerSample;
 
+        // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: a 24-bit format reports PcmS16Interleaved or PcmS32Interleaved as its source format
+        // Broiler-Human:        PENDING
         public AudioSampleFormat SourceFormat => BitsPerSample switch
         {
             8 => AudioSampleFormat.PcmU8Interleaved,
@@ -417,6 +501,9 @@ public sealed class WaveAudioCodec : AudioCodec
         };
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the reported stream duration differs from TotalFrames divided by SampleRate seconds by more than one tick
+    // Broiler-Human:        PENDING
     private readonly struct WaveDataChunk(WaveFormat format, long dataByteLength, long totalFrames)
     {
         public WaveFormat Format { get; } = format;
@@ -425,6 +512,9 @@ public sealed class WaveAudioCodec : AudioCodec
 
         public long TotalFrames { get; } = totalFrames;
 
+        // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+        // Broiler-Falsified-If: the returned info reports a block alignment or byte rate other than the values read from the fmt chunk
+        // Broiler-Human:        PENDING
         public AudioStreamInfo ToStreamInfo() =>
             new(Format.SampleRate, Format.Channels, Format.SourceFormat, FramesToTime(TotalFrames, Format.SampleRate), 
                 TotalFrames, Format.BitsPerSample, Format.BlockAlign, Format.ByteRate);

@@ -7,6 +7,8 @@ using Broiler.Media.Image.Managed.Entropy;
 namespace Broiler.Media.Image.Managed.Jbig2;
 
 /// <summary>What a text region segment produced, and where it goes on the page.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2TextRegionResult(
     Jbig2DecodeOutcome Outcome,
     Jbig2Bitmap? Bitmap,
@@ -18,14 +20,26 @@ public readonly record struct Jbig2TextRegionResult(
 /// <summary>
 /// Decodes a JBIG2 text region segment: where a dictionary's symbols are drawn.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+// Broiler-Falsified-If: one small segment placing 1,000,000 instances of an 8192 by 8192 symbol runs Draw, and any refinement, over every symbol pixel per instance with nothing charged to pixelBudget
+// Broiler-Human:        PENDING
 public static class Jbig2TextRegion
 {
     /// <summary>Region segment information: size, position, and the external operator.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a text region shorter than 19 bytes reaches the read of its two flag bytes instead of being refused
+    // Broiler-Human:        PENDING
     private const int RegionInfoLength = 17;
 
     /// <summary>The coordinate range a running difference may reach before it is nonsense.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a strip whose running T coordinate passes 2^24 is still placed instead of refused as malformed
+    // Broiler-Human:        PENDING
     private const int CoordinateCeiling = 1 << 24;
 
+    // Broiler-AI:           Origin=AI; Spec=T.88 s6.4; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: one small segment placing 1,000,000 instances of an 8192 by 8192 symbol runs Draw, and any refinement, over every symbol pixel per instance with nothing charged to pixelBudget
+    // Broiler-Human:        PENDING
     public static Jbig2TextRegionResult Decode(
         ReadOnlyMemory<byte> body,
         IReadOnlyList<Jbig2Bitmap> symbols,
@@ -232,6 +246,9 @@ public static class Jbig2TextRegion
     /// The number of bits a symbol identifier is coded in: enough to count the
     /// symbols available, as T.88 defines it.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a symbol count above 2^30 never returns, because 1 << bits wraps once bits reaches 31
+    // Broiler-Human:        PENDING
     public static int CodeLength(int symbolCount)
     {
         int bits = 0;
@@ -242,6 +259,9 @@ public static class Jbig2TextRegion
     }
 
     /// <summary>Draws a symbol onto the region with OR, clipped to the region.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a symbol whose left edge is negative or runs past region.Width has pixels written into the neighbouring row instead of clipped
+    // Broiler-Human:        PENDING
     private static void Draw(Jbig2Bitmap region, Jbig2Bitmap symbol, long left, long top)
     {
         for (int row = 0; row < symbol.Height; row++)
@@ -265,6 +285,8 @@ public static class Jbig2TextRegion
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private static Jbig2TextRegionResult Malformed(string message) =>
         new(Jbig2DecodeOutcome.Malformed, null, 0, 0, 0, message);
 
@@ -273,6 +295,9 @@ public static class Jbig2TextRegion
     /// procedures stating how one instance differs from its dictionary symbol,
     /// and the contexts the difference is coded against.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a refinement delta taking an instance's width or height to 0 or past 8192 is decoded instead of refused
+    // Broiler-Human:        PENDING
     private sealed class Jbig2TextRefinement(int template, (int X, int Y)[] adaptive)
     {
         private readonly Jbig2IntegerDecoder _flag = new();
@@ -282,6 +307,9 @@ public static class Jbig2TextRegion
         private readonly Jbig2IntegerDecoder _y = new();
         private readonly MqContexts _contexts = new(Jbig2RefinementDecoder.RefinementContextBits);
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+        // Broiler-Falsified-If: a refinement delta taking an instance's width or height to 0 or past 8192 is decoded instead of refused
+        // Broiler-Human:        PENDING
         public bool TryApply(MqDecoder decoder, ref Jbig2Bitmap symbol, out string? error)
         {
             error = null;
@@ -337,6 +365,8 @@ public static class Jbig2TextRegion
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private static Jbig2TextRegionResult Unsupported(string construct) =>
         new(Jbig2DecodeOutcome.Unsupported, null, 0, 0, 0, construct);
 }

@@ -4,6 +4,8 @@ using Broiler.Media.Image.Managed.Entropy;
 namespace Broiler.Media.Image.Managed.Jbig2;
 
 /// <summary>What one arithmetic integer decoding produced.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum Jbig2IntegerOutcome
 {
     /// <summary>A value, in the out parameter.</summary>
@@ -26,13 +28,22 @@ public enum Jbig2IntegerOutcome
 /// <summary>
 /// The arithmetic integer decoding procedure, T.88 Annex A.
 /// </summary>
+// Broiler-AI:           Origin=Specification; Spec=T.88 sA.2; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+// Broiler-Falsified-If: the accumulated PREV reaches 512 or more and indexes past the nine-bit context array
+// Broiler-Human:        PENDING
 public sealed class Jbig2IntegerDecoder
 {
     /// <summary>Nine bits of accumulated path, which is where PREV saturates.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ContextBits is below nine, so a saturated PREV between 256 and 511 indexes past the contexts it sizes
+    // Broiler-Human:        PENDING
     private const int ContextBits = 9;
 
     private readonly MqContexts _contexts = new(ContextBits);
 
+    // Broiler-AI:           Origin=Specification; Spec=T.88 sA.2; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a magnitude above int.MaxValue from the 32-bit branch is returned as a wrapped Value instead of OutOfRange
+    // Broiler-Human:        PENDING
     public Jbig2IntegerOutcome Decode(MqDecoder decoder, out int value)
     {
         ArgumentNullException.ThrowIfNull(decoder);
@@ -100,11 +111,17 @@ public sealed class Jbig2IntegerDecoder
 /// The IAID decoding procedure, T.88 Annex A.3: which symbol an instance refers
 /// to.
 /// </summary>
+// Broiler-AI:           Origin=Specification; Spec=T.88 sA.3; IP=Low; Security=High; Resources=2; Fingerprint=TBF
+// Broiler-Falsified-If: a code length above MaxSymbolCodeLength is accepted, so one decoder allocates more than 2^18 contexts
+// Broiler-Human:        PENDING
 public sealed class Jbig2SymbolIdDecoder
 {
     private readonly MqContexts _contexts;
     private readonly int _codeLength;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=2; Fingerprint=TBF
+    // Broiler-Falsified-If: a negative code length or one above Jbig2Limits.MaxSymbolCodeLength is accepted instead of throwing ArgumentOutOfRangeException
+    // Broiler-Human:        PENDING
     public Jbig2SymbolIdDecoder(int codeLength)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(codeLength);
@@ -114,6 +131,9 @@ public sealed class Jbig2SymbolIdDecoder
         _contexts = new MqContexts(codeLength + 1);
     }
 
+    // Broiler-AI:           Origin=Specification; Spec=T.88 sA.3; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a context index of 2^(codeLength + 1) or more is used, indexing past the decoder's contexts
+    // Broiler-Human:        PENDING
     public int Decode(MqDecoder decoder)
     {
         ArgumentNullException.ThrowIfNull(decoder);
