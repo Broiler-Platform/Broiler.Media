@@ -48,9 +48,14 @@ namespace Broiler.Media.Image.Managed;
 /// was removed again and the environment variable is still the only way a host configures it.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+// Broiler-Falsified-If: a range whose length is not a multiple of the band count is split into bands that overlap, skip a unit, or reach past toExclusive
+// Broiler-Human:        PENDING
 internal static class ImageDecodeParallelism
 {
     /// <summary>Environment variable that overrides the default thread budget.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     internal const string ThreadsEnvironmentVariable = "BROILER_IMAGE_DECODE_THREADS";
 
     private static int _maxDegreeOfParallelism = ReadConfiguredDegree();
@@ -59,12 +64,18 @@ internal static class ImageDecodeParallelism
     /// Maximum threads a decode pass may use. Clamped to at least one; <c>1</c> runs every pass
     /// inline on the calling thread, with no scheduler involvement at all.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: setting zero or a negative value leaves MaxDegreeOfParallelism below one
+    // Broiler-Human:        PENDING
     internal static int MaxDegreeOfParallelism
     {
         get => _maxDegreeOfParallelism;
         set => _maxDegreeOfParallelism = Math.Max(1, value);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: BROILER_IMAGE_DECODE_THREADS set to 0, a negative number or non-numeric text yields a budget other than Environment.ProcessorCount
+    // Broiler-Human:        PENDING
     private static int ReadConfiguredDegree()
     {
         string? configured = Environment.GetEnvironmentVariable(ThreadsEnvironmentVariable);
@@ -85,6 +96,9 @@ internal static class ImageDecodeParallelism
     /// bands is executed inline, so small images — favicons, the 1×1 spacers a page is full of —
     /// never pay for a scheduler round trip.
     /// </param>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: splitting ten units three ways hands the callback bands other than [0,4), [4,8) and [8,10), so a unit is skipped, repeated or passed beyond toExclusive
+    // Broiler-Human:        PENDING
     internal static void For(int fromInclusive, int toExclusive, int minimumUnitsPerBand, Action<int, int> band)
     {
         ArgumentNullException.ThrowIfNull(band);

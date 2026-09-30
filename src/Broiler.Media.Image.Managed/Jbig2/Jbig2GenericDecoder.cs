@@ -22,9 +22,15 @@ namespace Broiler.Media.Image.Managed.Jbig2;
 /// not which bit it contributes.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; Spec=T.88 s6.2; IP=High; Security=High; Resources=9; Fingerprint=TBF
+// Broiler-Falsified-If: an arithmetic-coded generic region from a conforming encoder decodes to a bitmap other than the one encoded, for any of the four templates (the values are transcribed from ITU-T T.88, whose reproduction licence is doubtful)
+// Broiler-Human:        PENDING
 public static class Jbig2GenericDecoder
 {
     /// <summary>The context width every generic template packs into.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a template packs more pixels into its context than GenericContextBits, so a context value indexes past the MqContexts array
+    // Broiler-Human:        PENDING
     public const int GenericContextBits = 16;
 
     /// <summary>
@@ -33,6 +39,9 @@ public static class Jbig2GenericDecoder
     /// a row. A null entry is an adaptive pixel's slot, filled from the region
     /// header — <c>A1</c> first, then <c>A2</c>, <c>A3</c>, <c>A4</c>.
     /// </summary>
+    // Broiler-AI:           Origin=Specification; Spec=T.88 s6.2; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a template's fixed pixels differ in position or raster order from the T.88 generic-region templates, so a conforming stream decodes to a different bitmap (the values are transcribed from ITU-T T.88, whose reproduction licence is doubtful)
+    // Broiler-Human:        PENDING
     private static readonly (int X, int Y)?[][] Templates =
     [
         // Template 0 — 16 pixels. Nominal adaptive positions are
@@ -65,6 +74,9 @@ public static class Jbig2GenericDecoder
     ];
 
     /// <summary>The adaptive-pixel slot order within each template.</summary>
+    // Broiler-AI:           Origin=AI; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: template 0's adaptive slots are filled from the header pixels in any order but A4, A3, A2, A1 (the values are transcribed from ITU-T T.88, whose reproduction licence is doubtful)
+    // Broiler-Human:        PENDING
     private static readonly int[][] AdaptiveOrder =
     [
         [3, 2, 1, 0],   // template 0 fills A4, A3, A2, A1 in raster order
@@ -86,6 +98,9 @@ public static class Jbig2GenericDecoder
     /// The adaptive pixel positions from the region header, A1 first. Nominal
     /// values are used for any the header did not supply.
     /// </param>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: a template outside 0 to 3 or a width or height of zero or less opens an arithmetic decoder instead of returning null
+    // Broiler-Human:        PENDING
     public static byte[]? Decode(
         ReadOnlyMemory<byte> data,
         int width,
@@ -101,6 +116,9 @@ public static class Jbig2GenericDecoder
     /// Decodes a region against an arithmetic decoder and contexts the caller
     /// owns, rather than ones opened for this region alone.
     /// </summary>
+    // Broiler-AI:           Origin=AI; Spec=T.88 s6.2; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: a width times height above int.MaxValue wraps into a smaller bitmap that the pixel loop then indexes past instead of returning null
+    // Broiler-Human:        PENDING
     public static byte[]? Decode(
         MqDecoder decoder,
         MqContexts contexts,
@@ -170,10 +188,16 @@ public static class Jbig2GenericDecoder
     /// first rows and left of the first column, and the format's answer there is
     /// that the missing pixels are white.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a coordinate left of, above, right of or below the bitmap reads anything but 0 or indexes the array
+    // Broiler-Human:        PENDING
     private static int At(byte[] bitmap, int width, int height, int x, int y) =>
         x >= 0 && x < width && y >= 0 && y < height ? bitmap[(y * width) + x] : 0;
 
     /// <summary>The template with its adaptive slots filled in.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: an adaptive pixel the header supplies lands in a slot other than its own, or a missing one takes a position other than its nominal one
+    // Broiler-Human:        PENDING
     public static (int X, int Y)[] Resolve(int template, ReadOnlySpan<(int X, int Y)> adaptive)
     {
         (int X, int Y)?[] slots = Templates[template];
@@ -198,6 +222,9 @@ public static class Jbig2GenericDecoder
     }
 
     /// <summary>The adaptive positions the format defines when a header supplies none.</summary>
+    // Broiler-AI:           Origin=Specification; Spec=T.88 s6.2; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a nominal adaptive position differs from T.88's: A1 (3,-1), A2 (-3,-1), A3 (2,-2), A4 (-2,-2) for template 0, (3,-1) for template 1 and (2,-1) for templates 2 and 3 (the values are transcribed from ITU-T T.88, whose reproduction licence is doubtful)
+    // Broiler-Human:        PENDING
     private static (int X, int Y) Nominal(int template, int which) => (template, which) switch
     {
         (0, 0) => (3, -1),

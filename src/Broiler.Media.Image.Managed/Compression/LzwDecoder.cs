@@ -5,6 +5,8 @@ using System.Threading;
 namespace Broiler.Media.Image.Managed.Compression;
 
 /// <summary>How an LZW decode ended.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum LzwOutcome
 {
     Decoded,
@@ -13,6 +15,8 @@ public enum LzwOutcome
 }
 
 /// <summary>The result of decoding one LZW stream.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct LzwResult(
     LzwOutcome Outcome,
     byte[]? Data,
@@ -22,15 +26,39 @@ public readonly record struct LzwResult(
 /// Variable-width Lempel-Ziv-Welch (LZW) decoder with configurable EarlyChange.
 /// Used in TIFF, GIF, and PDF streams.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+// Broiler-Falsified-If: a stream of self-referencing table codes produces more than maxBytes of output before TooLarge is returned
+// Broiler-Human:        PENDING
 public static class LzwDecoder
 {
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ClearCode is not 256, so a PDF or TIFF clear code is decoded as a table reference instead of resetting the table
+    // Broiler-Human:        PENDING
     private const int ClearCode = 256;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: code 257 is decoded as a table reference instead of ending the stream
+    // Broiler-Human:        PENDING
     private const int EndOfDataCode = 257;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the first entry added after a clear lands anywhere other than slot 258, so later codes resolve to the wrong strings
+    // Broiler-Human:        PENDING
     private const int FirstAssignedCode = 258;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: MaxCodes differs from 4096, so a full 12-bit table stops growing early or holds an entry no 12-bit code can reach
+    // Broiler-Human:        PENDING
     private const int MaxCodes = 4096;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the first code after a clear is read with a width other than 9 bits
+    // Broiler-Human:        PENDING
     private const int MinCodeWidth = 9;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: codes wider than 12 bits are read once the table fills, misaligning every later code
+    // Broiler-Human:        PENDING
     private const int MaxCodeWidth = 12;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a code above the next free table slot resolves from an entry left before a clear instead of returning Malformed
+    // Broiler-Human:        PENDING
     public static LzwResult Decode(
         ReadOnlySpan<byte> input,
         int earlyChange = 1,
@@ -147,6 +175,9 @@ public static class LzwDecoder
         return new LzwResult(LzwOutcome.Decoded, output.ToArray(), null);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: a prefix chain longer than scratch is followed past the 4096-byte buffer instead of returning false
+    // Broiler-Human:        PENDING
     private static bool TryWrite(
         MemoryStream output,
         long ceiling,

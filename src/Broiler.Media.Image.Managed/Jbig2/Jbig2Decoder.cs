@@ -7,6 +7,9 @@ using Broiler.Media.Image.Managed.CcittFax;
 namespace Broiler.Media.Image.Managed.Jbig2;
 
 /// <summary>The result of decoding one JBIG2 stream.</summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=5; Fingerprint=TBF
+// Broiler-Falsified-If: a black pixel of the decoded page comes out white from GetPackedBits with invert false or from ToImageBuffer
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2Result(
     Jbig2DecodeOutcome Outcome,
     int Width,
@@ -14,9 +17,15 @@ public readonly record struct Jbig2Result(
     Jbig2Bitmap? Page,
     string? Failure)
 {
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the result's Width or Height differs from the width or height of the page bitmap it carries
+    // Broiler-Human:        PENDING
     public static Jbig2Result Success(Jbig2Bitmap page) =>
         new(Jbig2DecodeOutcome.Decoded, page.Width, page.Height, page, null);
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a failed result carries a page bitmap or a non-zero width or height
+    // Broiler-Human:        PENDING
     public static Jbig2Result Failed(Jbig2DecodeOutcome outcome, string message) =>
         new(outcome, 0, 0, null, message);
 
@@ -25,6 +34,9 @@ public readonly record struct Jbig2Result(
     /// By default (invert = false), bit 1 means black and 0 means white (JBIG2 standard).
     /// If invert is true, bit 0 means black and 1 means white (PDF default image sample polarity).
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: the pixel at column x of row y is packed anywhere but bit 7 - x mod 8 of byte y * ceil(Width / 8) + x / 8
+    // Broiler-Human:        PENDING
     public byte[]? GetPackedBits(bool invert = false)
     {
         if (Page is null)
@@ -54,6 +66,9 @@ public readonly record struct Jbig2Result(
     }
 
     /// <summary>Expands the black and white bitmap to an 8-bit RGBA ImageBuffer.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=5; Fingerprint=TBF
+    // Broiler-Falsified-If: a black page pixel (value 1) is written as anything other than opaque 0, 0, 0 in the RGBA buffer
+    // Broiler-Human:        PENDING
     public ImageBuffer? ToImageBuffer()
     {
         if (Page is null)
@@ -80,16 +95,34 @@ public readonly record struct Jbig2Result(
 /// Decodes JBIG2 streams: generic regions (MMR and arithmetic), symbol dictionaries,
 /// text regions, and refinement regions.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+// Broiler-Falsified-If: one Decode call over a small stream of repeated symbol dictionaries or regions, each under maxDecodedBytes, holds or decodes far more than maxDecodedBytes in total
+// Broiler-Human:        PENDING
 public static class Jbig2Decoder
 {
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a region whose combination operator field is 0 is refused as unsupported, or one whose field is 1, 2 or 3 is composited as OR
+    // Broiler-Human:        PENDING
     private const int CombineOr = 0;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a region whose combination operator field is 4 is composited with OR, leaving black page pixels under its white pixels
+    // Broiler-Human:        PENDING
     private const int CombineReplace = 4;
 
+    // Broiler-AI:           Origin=AI; Spec=T.88 sD.4; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the array differs in any byte from the standalone-file ID string 97 4A 42 32 0D 0A 1A 0A
+    // Broiler-Human:        PENDING
     private static readonly byte[] FileHeader = [0x97, 0x4A, 0x42, 0x32, 0x0D, 0x0A, 0x1A, 0x0A];
 
+    // Broiler-AI:           Origin=AI; Spec=T.88 sD.4; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an input shorter than eight bytes throws, or one differing from the ID string in any of its first eight bytes returns true
+    // Broiler-Human:        PENDING
     public static bool IsJbig2(ReadOnlySpan<byte> data) =>
         data.Length >= 8 && data[..8].SequenceEqual(FileHeader);
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: a standalone file whose header flags mark the random-access organisation (bit 0 clear) is walked as a sequential stream, reading later segment headers as the first segment's data
+    // Broiler-Human:        PENDING
     public static Jbig2Result Decode(
         ReadOnlySpan<byte> data,
         ReadOnlySpan<byte> globals = default,
@@ -133,6 +166,9 @@ public static class Jbig2Decoder
         return Compose(data.ToArray(), segments, globalData, globalSegments, maxDecodedBytes, cancellationToken);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: a page or JBIG2Globals segment of a type with no decoder here, such as a halftone region, pattern dictionary or intermediate text region, passes without the stream being refused as Unsupported
+    // Broiler-Human:        PENDING
     private static string? Unsupported(List<Jbig2Segment> segments, List<Jbig2Segment> globals, ReadOnlySpan<byte> data)
     {
         var reasons = new List<string>();
@@ -184,10 +220,16 @@ public static class Jbig2Decoder
         return reasons.Count == 0 ? null : string.Join("; ", reasons);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: the refusal message drops the reasons it was given or the inventory of the stream's segments
+    // Broiler-Human:        PENDING
     private static string Refuse(string reasons, List<Jbig2Segment> segments) =>
         $"The JBIG2 stream contains unsupported features: {reasons}. " +
         $"The stream holds {Jbig2SegmentReader.Describe(segments)}.";
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: a stream of many symbol dictionaries or regions, each under maxDecodedBytes, keeps or decodes more than maxDecodedBytes in total because the ceiling is never reduced as segments are decoded
+    // Broiler-Human:        PENDING
     private static Jbig2Result Compose(
         ReadOnlyMemory<byte> data,
         List<Jbig2Segment> segments,
@@ -230,6 +272,9 @@ public static class Jbig2Decoder
         return Jbig2Result.Success(page);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=TBF
+    // Broiler-Falsified-If: a region reaching past the size a page information segment declares enlarges the decoded page beyond that declared size
+    // Broiler-Human:        PENDING
     private static (int Width, int Height, byte Default)? Size(
         ReadOnlySpan<byte> data,
         List<Jbig2Segment> segments,
@@ -269,6 +314,9 @@ public static class Jbig2Decoder
         return width > 0 && height > 0 ? (width, height, fill) : null;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a symbol dictionary that decodes as Malformed, Unsupported or TooLarge still leaves an entry in exports for a later text region to draw from
+    // Broiler-Human:        PENDING
     private static Jbig2Result? ReadDictionary(
         ReadOnlyMemory<byte> buffer,
         in Jbig2Segment segment,
@@ -301,6 +349,9 @@ public static class Jbig2Decoder
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=9; Fingerprint=TBF
+    // Broiler-Falsified-If: the refined instances of one text region together decode more pixels than maxDecodedBytes without the region being reported TooLarge
+    // Broiler-Human:        PENDING
     private static Jbig2Result? ReadTextRegion(
         ReadOnlyMemory<byte> buffer,
         in Jbig2Segment segment,
@@ -345,6 +396,9 @@ public static class Jbig2Decoder
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a refinement region whose width times height exceeds maxDecodedBytes allocates its reference copy or reaches the refinement decoder before TooLarge is returned
+    // Broiler-Human:        PENDING
     private static Jbig2Result? ReadRefinementRegion(
         ReadOnlyMemory<byte> buffer,
         in Jbig2Segment segment,
@@ -389,6 +443,9 @@ public static class Jbig2Decoder
         return null;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a generic region whose width times height exceeds maxDecodedBytes reaches the MMR or arithmetic decoder instead of returning TooLarge
+    // Broiler-Human:        PENDING
     private static Jbig2Result? ReadGenericRegion(
         ReadOnlyMemory<byte> buffer,
         in Jbig2Segment segment,
@@ -435,6 +492,9 @@ public static class Jbig2Decoder
         return null;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a segment that names one dictionary 4096 times builds a list of 4096 copies of its exports before any MaxSymbols check refuses it
+    // Broiler-Human:        PENDING
     private static List<Jbig2Bitmap> Gather(in Jbig2Segment segment, Dictionary<uint, Jbig2Bitmap[]> exports)
     {
         var symbols = new List<Jbig2Bitmap>();
@@ -447,6 +507,9 @@ public static class Jbig2Decoder
         return symbols;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a reference rectangle reaching past the page edge reads anything but white for the pixels beyond it
+    // Broiler-Human:        PENDING
     private static Jbig2Bitmap Extract(Jbig2Bitmap page, int x, int y, int width, int height)
     {
         var pixels = new byte[width * height];
@@ -459,6 +522,9 @@ public static class Jbig2Decoder
         return new Jbig2Bitmap(width, height, pixels);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: packed MMR rows shorter than height times the row stride throw instead of leaving the missing pixels white
+    // Broiler-Human:        PENDING
     private static Jbig2Bitmap Unpack(byte[] rows, int width, int height)
     {
         int stride = (width + 7) / 8;
@@ -479,6 +545,9 @@ public static class Jbig2Decoder
         return new Jbig2Bitmap(width, height, pixels);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a region placed partly off the page writes a pixel outside the page's bounds or wraps it onto another row
+    // Broiler-Human:        PENDING
     private static void Draw(Jbig2Bitmap page, Jbig2Bitmap region, int originX, int originY, int combination)
     {
         for (int row = 0; row < region.Height; row++)

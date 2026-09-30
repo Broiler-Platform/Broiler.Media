@@ -9,12 +9,27 @@ namespace Broiler.Media.Image.Managed.Bmp;
 /// alpha channel is preserved, so a BMP written here round-trips losslessly
 /// through <see cref="BmpDecoder"/>.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+// Broiler-Falsified-If: an ImageBuffer whose Stride exceeds Width times 4 is encoded from the wrong byte offsets, so each row after the first starts inside the previous row
+// Broiler-Human:        PENDING
 internal static class BmpEncoder
 {
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a value other than 14 makes the info header and pixel offset written by Encode disagree with where the decoder reads them
+    // Broiler-Human:        PENDING
     private const int FileHeaderSize = 14;
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a value other than 40 makes the header-size field written by Encode fail the decoder check for a BITMAPINFOHEADER
+    // Broiler-Human:        PENDING
     private const int InfoHeaderSize = 40;
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: the pixel-data offset written at bytes 10 to 13 differs from the offset the first encoded pixel row is written at
+    // Broiler-Human:        PENDING
     private const int PixelOffset = FileHeaderSize + InfoHeaderSize;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: an ImageBuffer whose Stride exceeds Width times 4 is encoded from the wrong byte offsets, so each row after the first starts inside the previous row
+    // Broiler-Human:        PENDING
     public static byte[] Encode(ImageBuffer buffer)
     {
         ArgumentNullException.ThrowIfNull(buffer);

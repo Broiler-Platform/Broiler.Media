@@ -5,39 +5,96 @@ namespace Broiler.Media.Image.Managed.CcittFax;
 /// <summary>
 /// The run-length and mode codes of ITU-T T.4 and T.6.
 /// </summary>
+// Broiler-AI:           Origin=Specification; IP=High; Security=High; Resources=1; Fingerprint=TBF
+// Broiler-Falsified-If: a code-table row differs from the ITU-T T.4 run-length or mode code it transcribes, so a conforming fax stream decodes to different runs (transcribed ITU table, reproduction licence doubtful)
+// Broiler-Human:        PENDING
 public static class CcittFaxTables
 {
     /// <summary>The longest run code, in bits.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: MaxRunCodeLength is below 13, so the 13-bit black makeup codes for runs 512 to 1728 never resolve
+    // Broiler-Human:        PENDING
     public const int MaxRunCodeLength = 14;
 
     /// <summary>Runs are coded in multiples of 64 above 63.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: MakeupStep is not 64, so a run split by it into makeup and terminating codes does not match the T.4 makeup table
+    // Broiler-Human:        PENDING
     public const int MakeupStep = 64;
 
     /// <summary>A code that resolves to a makeup run needs a terminating code after it.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a makeup run of 64 is treated as terminating, ending the run before its terminating code is read
+    // Broiler-Human:        PENDING
     public const int MaxTerminatingRun = 63;
 
     // ---- two-dimensional mode codes -------------------------------------------
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModePass shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a pass code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModePass = 1;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeHorizontal shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a horizontal code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeHorizontal = 2;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVertical0 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a V0 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVertical0 = 3;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVerticalRight1 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a VR1 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVerticalRight1 = 4;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVerticalRight2 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a VR2 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVerticalRight2 = 5;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVerticalRight3 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a VR3 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVerticalRight3 = 6;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVerticalLeft1 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a VL1 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVerticalLeft1 = 7;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVerticalLeft2 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a VL2 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVerticalLeft2 = 8;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeVerticalLeft3 shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a VL3 code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeVerticalLeft3 = 9;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeExtension shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a extension code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeExtension = 10;
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: ModeEndOfLine shares its value with another Mode constant, so the mode switch in DecodeTwoDimensionalLine takes a end-of-line code for a different mode
+    // Broiler-Human:        PENDING
     public const int ModeEndOfLine = 11;
 
     /// <summary>The longest mode code, in bits.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: MaxModeCodeLength is below 12, so the 12-bit end-of-line code never resolves as a mode
+    // Broiler-Human:        PENDING
     public const int MaxModeCodeLength = 12;
 
     /// <summary>The end-of-line code: eleven zeroes and a one.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: EndOfLineCode is not eleven zero bits then a one, so an end-of-line inside a two-dimensional line is not recognised
+    // Broiler-Human:        PENDING
     public const int EndOfLineCode = 0b000000000001;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: EndOfLineLength is below 12, so TryPeekEndOfLine takes fewer than eleven zero bits and a one for an end-of-line
+    // Broiler-Human:        PENDING
     public const int EndOfLineLength = 12;
 
+    // Broiler-AI:           Origin=Specification; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a white row differs from its T.4 code, e.g. run 1728 not decoding from the 9-bit 010011011 (transcribed ITU table, reproduction licence doubtful)
+    // Broiler-Human:        PENDING
     private static readonly (int Code, int Length, int Run)[] WhiteCodes =
     [
         (0b00110101, 8, 0), (0b000111, 6, 1), (0b0111, 4, 2), (0b1000, 4, 3),
@@ -66,6 +123,9 @@ public static class CcittFaxTables
         (0b010011010, 9, 1600), (0b011000, 6, 1664), (0b010011011, 9, 1728),
     ];
 
+    // Broiler-AI:           Origin=Specification; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a black row differs from its T.4 code, e.g. run 0 not decoding from the 10-bit 0000110111 (transcribed ITU table, reproduction licence doubtful)
+    // Broiler-Human:        PENDING
     private static readonly (int Code, int Length, int Run)[] BlackCodes =
     [
         (0b0000110111, 10, 0), (0b010, 3, 1), (0b11, 2, 2), (0b10, 2, 3),
@@ -97,6 +157,9 @@ public static class CcittFaxTables
     ];
 
     /// <summary>The makeup codes above 1728, shared by both colours.</summary>
+    // Broiler-AI:           Origin=Specification; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: an extended makeup row differs from its T.4 code, e.g. run 2560 not decoding from the 12-bit 000000011111 (transcribed ITU table, reproduction licence doubtful)
+    // Broiler-Human:        PENDING
     private static readonly (int Code, int Length, int Run)[] ExtendedCodes =
     [
         (0b00000001000, 11, 1792), (0b00000001100, 11, 1856), (0b00000001101, 11, 1920),
@@ -106,6 +169,9 @@ public static class CcittFaxTables
         (0b000000011111, 12, 2560),
     ];
 
+    // Broiler-AI:           Origin=Specification; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a mode row differs from the T.4 two-dimensional code table, e.g. pass not decoding from the 4-bit 0001 (transcribed ITU table, reproduction licence doubtful)
+    // Broiler-Human:        PENDING
     private static readonly (int Code, int Length, int Mode)[] ModeCodes =
     [
         (0b1, 1, ModeVertical0),
@@ -127,8 +193,14 @@ public static class CcittFaxTables
 
     public static IReadOnlyDictionary<int, int> Modes { get; } = BuildModes();
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: two distinct (length, code) pairs with codes under 16 bits map to the same key, so one table entry shadows another
+    // Broiler-Human:        PENDING
     public static int Key(int length, int code) => (length << 16) | code;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a key present in both the colour table and ExtendedCodes is silently overwritten, leaving one run length undecodable
+    // Broiler-Human:        PENDING
     private static Dictionary<int, int> Build(
         (int Code, int Length, int Run)[] codes,
         (int Code, int Length, int Run)[] extended)
@@ -141,6 +213,9 @@ public static class CcittFaxTables
         return table;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: two ModeCodes rows share a key and the later silently replaces the earlier, leaving one mode undecodable
+    // Broiler-Human:        PENDING
     private static Dictionary<int, int> BuildModes()
     {
         var table = new Dictionary<int, int>(ModeCodes.Length);

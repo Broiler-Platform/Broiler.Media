@@ -3,9 +3,15 @@ namespace Broiler.Media.Image.Managed.Entropy;
 /// <summary>
 /// The MQ coder's probability estimation table, ITU-T T.88 Annex E / ITU-T T.800 Annex C.
 /// </summary>
+// Broiler-AI:           Origin=Specification; Spec=T.800 sC; IP=High; Security=High; Resources=0; Fingerprint=TBF
+// Broiler-Falsified-If: a state row differs from the T.800 Annex C Qe table, so a context adapts through probabilities the encoder did not use (transcribed ITU table, reproduction licence doubtful)
+// Broiler-Human:        PENDING
 public static class MqStates
 {
     /// <summary>Qe, NMPS, NLPS, SWITCH — one state per line, in index order.</summary>
+    // Broiler-AI:           Origin=Specification; Spec=T.800 sC; IP=High; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a row differs from the T.800 Annex C Qe table, e.g. state 45 not holding Qe 0x0001, NMPS 45, NLPS 43, SWITCH 0 (transcribed ITU table, reproduction licence doubtful)
+    // Broiler-Human:        PENDING
     public static readonly (ushort Qe, byte Nmps, byte Nlps, byte Switch)[] All =
     [
         (0x5601, 1, 1, 1), (0x3401, 2, 6, 0), (0x1801, 3, 9, 0), (0x0AC1, 4, 12, 0),

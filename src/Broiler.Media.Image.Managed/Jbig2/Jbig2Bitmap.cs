@@ -12,8 +12,14 @@ namespace Broiler.Media.Image.Managed.Jbig2;
 /// neighbours per pixel, and a text region composites symbols at arbitrary
 /// offsets. Packing happens once, on the way out of the filter.
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+// Broiler-Falsified-If: Blank with a width and height whose product exceeds int.MaxValue returns a bitmap whose pixel array is shorter than Width x Height instead of throwing
+// Broiler-Human:        PENDING
 public sealed class Jbig2Bitmap
 {
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a pixel array shorter than width x height is accepted, so At() inside the declared extent throws IndexOutOfRangeException instead of the mismatch being refused at construction
+    // Broiler-Human:        PENDING
     public Jbig2Bitmap(int width, int height, byte[] pixels)
     {
         ArgumentNullException.ThrowIfNull(pixels);
@@ -30,6 +36,9 @@ public sealed class Jbig2Bitmap
     /// <summary>Row-major, one byte per pixel.</summary>
     public byte[] Pixels { get; }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=TBF
+    // Broiler-Falsified-If: a width and height whose product exceeds int.MaxValue, such as 65536 x 65536, allocate a wrapped-around pixel array instead of raising OverflowException
+    // Broiler-Human:        PENDING
     public static Jbig2Bitmap Blank(int width, int height, byte value)
     {
         var pixels = new byte[width * height];
@@ -39,11 +48,16 @@ public sealed class Jbig2Bitmap
         return new Jbig2Bitmap(width, height, pixels);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a coordinate with x equal to Width, or y equal to -1, returns a pixel of the bitmap instead of 0
+    // Broiler-Human:        PENDING
     public byte At(int x, int y) =>
         x >= 0 && x < Width && y >= 0 && y < Height ? Pixels[(y * Width) + x] : (byte)0;
 }
 
 /// <summary>How one segment's decode ended.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public enum Jbig2DecodeOutcome
 {
     /// <summary>A bitmap, or a set of them.</summary>

@@ -2,8 +2,14 @@ using System;
 
 namespace Broiler.Media.Audio;
 
+// Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+// Broiler-Falsified-If: a negative duration or a negative total frame count is accepted
+// Broiler-Human:        PENDING
 public sealed class AudioStreamInfo
 {
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a negative duration or a negative total frame count is accepted
+    // Broiler-Human:        PENDING
     public AudioStreamInfo(int sampleRate, int channels, AudioSampleFormat sourceFormat, TimeSpan? duration = null, 
         long? totalFrames = null, int bitsPerSample = 0, int blockAlign = 0, int byteRate = 0)
     {

@@ -8,12 +8,21 @@ namespace Broiler.Media.Image.Managed.Bmp;
 /// <c>BITMAPINFOHEADER</c>. Supports 24bpp (BGR) and 32bpp (BGRA) bitmaps in
 /// both bottom-up and top-down row orders, expanding them to 8-bit RGBA.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+// Broiler-Falsified-If: a header whose width times bit count overflows int (width 67108864 at 32bpp) passes the truncation check and allocates width times height times 4 bytes for a 58-byte file
+// Broiler-Human:        PENDING
 internal static class BmpDecoder
 {
     /// <summary>True if <paramref name="data"/> starts with the 'BM' BMP signature.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=TBF
+    // Broiler-Falsified-If: a one-byte input holding only the byte B is reported as a BMP instead of returning false
+    // Broiler-Human:        PENDING
     public static bool IsBmp(ReadOnlySpan<byte> data) =>
         data.Length >= 2 && data[0] == (byte)'B' && data[1] == (byte)'M';
 
+    // Broiler-AI:           Origin=AI; Spec=ADR-0003; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a header whose width times bit count overflows int (width 67108864 at 32bpp) passes the truncation check and allocates width times height times 4 bytes for a 58-byte file
+    // Broiler-Human:        PENDING
     public static ImageBuffer Decode(ReadOnlySpan<byte> data)
     {
         if (!IsBmp(data))
@@ -83,6 +92,9 @@ internal static class BmpDecoder
     /// Reads the file header and the DIB header's first fields. Both sit at fixed
     /// offsets, so this is a bounds check and four reads.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=TBF
+    // Broiler-Falsified-If: a header whose height is int.MinValue returns true or throws OverflowException instead of returning false
+    // Broiler-Human:        PENDING
     public static bool TryInspect(ReadOnlySpan<byte> data, out ImageInfo? info)
     {
         info = null;

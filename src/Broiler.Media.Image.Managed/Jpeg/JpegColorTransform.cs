@@ -16,6 +16,9 @@ namespace Broiler.Media.Image.Managed.Jpeg;
 /// apply to them.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=TBF
+// Broiler-Falsified-If: default(JpegColorTransform) is None, so a caller that states nothing receives YCbCr samples as RGB
+// Broiler-Human:        PENDING
 public enum JpegColorTransform
 {
     /// <summary>

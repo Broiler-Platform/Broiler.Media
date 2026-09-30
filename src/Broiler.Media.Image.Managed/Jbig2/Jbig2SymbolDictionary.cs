@@ -7,6 +7,8 @@ using Broiler.Media.Image.Managed.Entropy;
 namespace Broiler.Media.Image.Managed.Jbig2;
 
 /// <summary>What a symbol dictionary segment produced.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+// Broiler-Human:        PENDING
 public readonly record struct Jbig2SymbolDictionaryResult(
     Jbig2DecodeOutcome Outcome,
     Jbig2Bitmap[] Symbols,
@@ -16,8 +18,14 @@ public readonly record struct Jbig2SymbolDictionaryResult(
 /// Decodes a JBIG2 symbol dictionary segment: the shapes a text region will
 /// later place.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+// Broiler-Falsified-If: symbols whose summed width times height exceeds pixelBudget are still decoded instead of ending with TooLarge
+// Broiler-Human:        PENDING
 public static class Jbig2SymbolDictionary
 {
+    // Broiler-AI:           Origin=AI; Spec=T.88 s6.5; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a height class that never ends in out-of-band defines more symbols than the header's new-symbol count instead of being refused
+    // Broiler-Human:        PENDING
     public static Jbig2SymbolDictionaryResult Decode(
         ReadOnlyMemory<byte> body,
         IReadOnlyList<Jbig2Bitmap> input,
@@ -175,6 +183,9 @@ public static class Jbig2SymbolDictionary
     /// the combined list holds them — which is the order a text region's symbol
     /// identifiers count through.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=TBF
+    // Broiler-Falsified-If: a stream of zero-length export runs keeps the loop running past twice the symbol total plus two iterations
+    // Broiler-Human:        PENDING
     private static Jbig2SymbolDictionaryResult Export(
         MqDecoder decoder,
         Jbig2IntegerDecoder exportRun,
@@ -227,15 +238,22 @@ public static class Jbig2SymbolDictionary
         return new Jbig2SymbolDictionaryResult(Jbig2DecodeOutcome.Decoded, [.. exported], null);
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private static Jbig2SymbolDictionaryResult Malformed(string message) =>
         new(Jbig2DecodeOutcome.Malformed, [], message);
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=TBF
+    // Broiler-Human:        PENDING
     private static Jbig2SymbolDictionaryResult Unsupported(string construct) =>
         new(Jbig2DecodeOutcome.Unsupported, [], construct);
 
     /// <summary>
     /// A symbol defined as a correction of one the dictionary already holds.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+    // Broiler-Falsified-If: a refinement naming an identifier at or past input.Count plus the symbols defined so far reads an undefined slot instead of being refused
+    // Broiler-Human:        PENDING
     private sealed class Jbig2SymbolRefinement(int template, (int X, int Y)[] adaptive, int codeLength)
     {
         private readonly Jbig2IntegerDecoder _instances = new();
@@ -244,6 +262,9 @@ public static class Jbig2SymbolDictionary
         private readonly Jbig2SymbolIdDecoder _identifier = new(codeLength);
         private readonly MqContexts _contexts = new(Jbig2RefinementDecoder.RefinementContextBits);
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=TBF
+        // Broiler-Falsified-If: a refinement naming an identifier at or past input.Count plus the symbols defined so far reads an undefined slot instead of being refused
+        // Broiler-Human:        PENDING
         public Jbig2SymbolDictionaryResult? Decode(
             MqDecoder decoder,
             int width,
