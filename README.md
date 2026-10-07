@@ -273,7 +273,7 @@ powershell -File eng/pack.ps1
   - Invokes CI to build and pack with the resolved version.
   - Performs a clean consumer restore test using `eng/verify-feed.ps1 -Target nuget` with an isolated cache.
   - Pushes validated `.nupkg` and `.snupkg` artifacts to NuGet.org using the `NUGET_TOKEN` secret.
-  - Manual dispatches default to a dry run (`dry-run: true`).
+  - Every run pushes; there is no dry-run mode (CI packs and verifies without pushing).
 
 ---
 
