@@ -1,25 +1,4 @@
 <Solution>
-  <Folder Name="/solution items/">
-    <File Path="Directory.Build.props" />
-    <File Path="NuGet.config" />
-    <File Path="LICENSE" />
-    <File Path="README.md" />
-    <File Path=".gitignore" />
-  </Folder>
-  <Folder Name="/solution items/eng/">
-    <File Path="eng/Broiler.Packaging.props" />
-  </Folder>
-  <Folder Name="/solution items/docs/">
-    <File Path="docs/packaging.md" />
-    <File Path="docs/roadmap.md" />
-    <File Path="docs/adr/README.md" />
-    <File Path="docs/adr/0001-component-topology-and-consumption-policy.md" />
-    <File Path="docs/adr/0002-buffer-ownership-and-limits.md" />
-    <File Path="docs/adr/0003-image-pixel-and-alpha-format.md" />
-    <File Path="docs/adr/0004-compatibility-window.md" />
-    <File Path="docs/adr/0005-windows-media-foundation-borrowed-hwnd.md" />
-    <File Path="docs/adr/0006-no-graphics-dependency.md" />
-  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Broiler.Media/Broiler.Media.csproj" />
     <Project Path="src/Broiler.Media.Audio/Broiler.Media.Audio.csproj" />
